@@ -1,9 +1,18 @@
 
 const { MongoClient } = require('mongodb');
+const Minio = require('minio');
+
 
 const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 
+const minioClient = new Minio.Client({
+    endPoint: 'localhost',
+    port: 9000,
+    useSSL: true,
+    accessKey: 'admin123',
+    secretKey: 'admin',
+  });
 async function getImageCollection() {
     if (!client.topology || !client.topology.isConnected()) {
         await client.connect();

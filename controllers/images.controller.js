@@ -1,12 +1,46 @@
-const { saveImageData } = require('../models/camera.model');
 
-exports.uploadImage = async (req, res) => {
+const { uploadImageToS3, getFileUrl } = require('../services/minio.service');
+const  Camera = require('../models/camera.model');
+
+
+
+const uploadImage = async (req, res) => {
     try {
-        const imageData = req.body;
-        const imageId = await saveImageData(imageData);
-        res.status(201).json({ message: 'Image data saved successfully', imageId });
+        // Check if file exists
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const { file } = req;
+        const { userId, latitude, longitude, timestamp } = req.body;
+
+        console.log("🟢 Request Body:", req.body);
+        console.log("🟢 Uploaded File:", req.file);
+
+        // Define bucket and object name
+        const bucketName = process.env.MINIO_BUCKET_NAME;
+        const objectName = `user-${userId}-${Date.now()}.png`;
+
+        // Upload image to MinIO
+        await uploadImageToS3(file, bucketName, objectName);
+
+        // Get the image URL
+        const imageUrl = await getFileUrl(bucketName, objectName);
+
+        // Save image metadata to database
+        const newImage = await Camera.saveImageData({
+            userId,
+            latitude,
+            longitude,
+            timestamp,
+            imageUrl, // Include the image URL
+        });
+
+        res.status(200).json({ imageId: newImage._id, imageUrl });
     } catch (error) {
-        console.error('[uploadImage] Error:', error.message);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error("❌ Error uploading image:", error);
+        res.status(500).json({ error: "Failed to upload image" });
     }
 };
+
+module.exports = { uploadImage };

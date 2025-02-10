@@ -28,7 +28,7 @@ const uploadImage = async (req, res) => {
         const imageUrl = await getFileUrl(bucketName, objectName);
 
         // Save image metadata to database
-        const newImage = await Camera.saveImageData({
+        const { imageId, incidentId } = await Camera.saveImageData({
             userId,
             latitude,
             longitude,
@@ -36,7 +36,7 @@ const uploadImage = async (req, res) => {
             imageUrl, // Include the image URL
         });
 
-        res.status(200).json({ imageId: newImage._id, imageUrl });
+        res.status(200).json({ imageId, incidentId, imageUrl });
     } catch (error) {
         console.error("❌ Error uploading image:", error);
         res.status(500).json({ error: "Failed to upload image" });

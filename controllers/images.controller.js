@@ -1,7 +1,19 @@
-
 const { uploadImageToS3, getFileUrl } = require('../services/minio.service');
-const  Camera = require('../models/camera.model');
+const Camera = require('../models/camera.model');
 
+/**
+ * Uploads an image to MinIO and saves its metadata to the database.
+ * 
+ * @param {Object} req - The request object.
+ * @param {Object} req.file - The uploaded file.
+ * @param {Object} req.body - The request body.
+ * @param {string} req.body.userId - The ID of the user uploading the image.
+ * @param {number} req.body.latitude - The latitude where the image was taken.
+ * @param {number} req.body.longitude - The longitude where the image was taken.
+ * @param {string} req.body.timestamp - The timestamp when the image was taken.
+ * @param {Object} res - The response object.
+ * @returns {Promise<void>}
+ */
 
 
 const uploadImage = async (req, res) => {
@@ -43,4 +55,23 @@ const uploadImage = async (req, res) => {
     }
 };
 
-module.exports = { uploadImage };
+const getAllincdents =  async (req, res) => {
+    
+    try{
+        // Fetch all incident data from the database
+         const incidents = await Camera.getAllImages();
+
+         if(!incidents || incidents.length === 0){
+                return res.status(404).json({ error: "No incidents found" });
+         }
+
+            res.status(200).json(incidents);
+
+    } catch (error){
+        console.error("❌ Error fetching incidents:", error);
+        res.status(500).json({ error: "Failed to fetch incidents" });
+    }
+
+}
+
+module.exports = { uploadImage , getAllincdents };

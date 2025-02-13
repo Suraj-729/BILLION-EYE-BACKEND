@@ -48,6 +48,13 @@ async function saveImageData(imageData) {
   return result.insertedId;
 }
 
+
+async function getAllImages() {
+  const collection = await getImageCollection();
+  return await collection.find({}).toArray();
+}
+
 module.exports = {
   saveImageData,
+  getAllImages
 };

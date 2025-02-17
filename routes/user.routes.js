@@ -61,6 +61,9 @@ router.get("/protected", auth, (req, res) => {
   res.status(200).json({ message: "Welcome to the protected route!", user: req.user });
 });
 
+// router.get('/imgaes/:incidentId', getImageData);
+
+
 
 
 // Get All Incidents Route

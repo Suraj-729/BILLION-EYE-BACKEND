@@ -82,6 +82,7 @@ const uploadImage = async (req, res) => {
 //     }
 // }
 
+
 const getAllincdents =  async (req, res) => {
     
     try{
@@ -101,7 +102,7 @@ const getAllincdents =  async (req, res) => {
 
 }
 
-module.exports = { uploadImage , getAllincdents };
+module.exports = { uploadImage , getAllincdents , getEventReport};
 
 
 

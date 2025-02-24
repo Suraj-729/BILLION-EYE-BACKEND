@@ -1,7 +1,7 @@
-const Camera = require('../models/camera.model');
+// const Camera = require('../models/camera.model');
 
-const getEventReport = async(req, res) => {
+// const getEventReport = async(req, res) => {
       
-}
+// }
 
-module.exports = { getEventReport };
+// module.exports = { getEventReport };

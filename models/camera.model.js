@@ -49,20 +49,32 @@ async function saveImageData(imageData) {
 }
 
 
-// async function getAllImages() {
-//   const collection = await getImageCollection();
-//   return await collection.find({}).toArray();
-// }
 
 async function getLatestImage() {
   const collection = await getImageCollection();
   return await collection
       .find({})
       .sort({ timestamp: -1 }) // ✅ Correct field path
-      .limit(1)
-      .toArray()
-      .then(images => images[0] || null);
+      .limit(3)
+      .toArray();
+      
 }
+
+// ✅ Fetch Images by Status
+async function getImagesByStatus(status) {
+  const collection = await getImageCollection();
+  return await collection.find({ status }).sort({ timestamp: -1 }).toArray();
+}
+
+
+module.exports = {
+  saveImageData,
+  // getAllImages,
+  getLatestImage,
+  getImagesByStatus
+
+};
+
 
 // async function getAllImages() {
 //   try {
@@ -81,10 +93,7 @@ async function getLatestImage() {
 // }
 
 
-module.exports = {
-  saveImageData,
-  // getAllImages,
-  getLatestImage
-};
-
-
+// async function getAllImages() {
+//   const collection = await getImageCollection();
+//   return await collection.find({}).toArray();
+// }

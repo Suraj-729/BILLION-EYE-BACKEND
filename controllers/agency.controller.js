@@ -34,16 +34,7 @@ async function createAgency(req, res) {
     }
 }
 
-// // Fetch images for agencies
-// async function getImages(req, res) {
-//     try {
-//         const images = await ImageModel.getAllImages(); // Fetch images from DB
-//         res.status(200).json(images);
-//     } catch (error) {
-//         console.error("[getImages] Error:", error.message);
-//         res.status(500).json({ success: false, message: error.message });
-//     }
-// }
+
 async function getLatestImage(req, res) {
     try {
         const latestImage = await ImageModel.getLatestImage();
@@ -57,6 +48,7 @@ async function getLatestImage(req, res) {
     }
 }
 
+
 module.exports = {
     createAgency,
     // getImages,
@@ -65,7 +57,16 @@ module.exports = {
 
 
 
-
+// Fetch images for agencies
+// async function getImages(req, res) {
+//     try {
+//         const images = await ImageModel.getAllImages(); // Fetch images from DB
+//         res.status(200).json(images);
+//     } catch (error) {
+//         console.error("[getImages] Error:", error.message);
+//         res.status(500).json({ success: false, message: error.message });
+//     }
+// }
 
 // // Get an agency by ID
 // async function getAgencyById(req, res) {

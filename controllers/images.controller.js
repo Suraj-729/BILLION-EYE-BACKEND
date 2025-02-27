@@ -102,7 +102,7 @@ const getAllincdents =  async (req, res) => {
 
 }
 
-module.exports = { uploadImage , getAllincdents };
+module.exports = { uploadImage , getAllincdents  };
 
 
 

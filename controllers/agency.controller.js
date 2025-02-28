@@ -1,5 +1,6 @@
 const AgencyModel = require("../models/agency.model");
 const { getImageCollection } = require("../models/camera.model"); 
+const ImageModel = require("../models/camera.model")
 const bcrypt = require("bcrypt");
 const { ObjectId } = require('mongodb');
 // Create A New Agency
@@ -54,25 +55,17 @@ async function getUpdateStatus(req, res) {
         console.log("[getUpdateStatus] API hit with params:", req.params);
 
         let { incidentID } = req.params;
-        incidentID = incidentID.replace(/^:/, ""); // Remove ":" from the incidentID
+        incidentID = incidentID.replace(/^:/, ""); // Remove ":" if mistakenly passed
 
         if (!incidentID) {
             console.warn("[getUpdateStatus] Missing incident ID");
             return res.status(400).json({ success: false, message: "Incident ID is required" });
         }
 
-        let objectId;
-        try {
-            objectId = new ObjectId(incidentID);
-        } catch (error) {
-            console.error("[getUpdateStatus] Invalid ObjectId format:", incidentID);
-            return res.status(400).json({ success: false, message: "Invalid Incident ID format" });
-        }
-
         const collection = await getImageCollection();
         console.log(`[getUpdateStatus] Fetching incident with ID: ${incidentID}`);
 
-        const incident = await collection.findOne({ incidentID: incidentID });
+        const incident = await collection.findOne({ incidentID: incidentID }); // Keep it as a string
 
         if (!incident) {
             console.warn(`[getUpdateStatus] Incident not found: ${incidentID}`);
@@ -92,11 +85,46 @@ async function getUpdateStatus(req, res) {
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
+async function updateStatus(req, res) {
+    try {
+        console.log("[updateStatus] API hit with params:", req.params);
+
+        let { incidentID } = req.params;
+        incidentID = incidentID.replace(/^:/, ""); // Remove ":" if mistakenly passed
+
+        if (!incidentID) {
+            console.warn("[updateStatus] Missing incident ID");
+            return res.status(400).json({ success: false, message: "Incident ID is required" });
+        }
+
+        const collection = await getImageCollection();
+        console.log(`[updateStatus] Updating incident with ID: ${incidentID}`);
+
+        // Update the status in the database
+        const updateResult = await collection.updateOne(
+            { incidentID: incidentID }, 
+            { $set: { status: "ACTIVE", accepted: true } }
+        );
+
+        if (updateResult.matchedCount === 0) {
+            console.warn(`[updateStatus] Incident not found: ${incidentID}`);
+            return res.status(404).json({ success: false, message: "Incident not found" });
+        }
+
+        console.log(`[updateStatus] Incident updated successfully`);
+        res.status(200).json({ success: true, message: "Incident status updated to ACTIVE" });
+
+    } catch (error) {
+        console.error("[updateStatus] Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
 
 
 module.exports = {
     createAgency,
     getUpdateStatus,
-    getLatestImage
+    getLatestImage,
+    updateStatus
 };
 

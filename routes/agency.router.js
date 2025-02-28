@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {
-    getImagesByStatus} = require("../models/camera.model");
+const {getImagesByStatus} = require("../models/camera.model");
 // const ImageController = require('../controllers/images.controller')
 const AgencyController = require('../controllers/agency.controller');
 
@@ -26,8 +25,9 @@ router.get("/images/:status", async (req, res) => {
     res.status(500).json({ error: "Error fetching images by status" });
   }
 });
-router.put("/images/status/:incidentID", AgencyController.getUpdateStatus);
-//router.get("/images/status", AgencyController.getUpdateStatus);
+// router.get("/images/status/:incidentID", AgencyController.getUpdateStatus);
+router.put("/images/status/:incidentID", AgencyController.updateStatus);
+router.get("/images/status", AgencyController.getUpdateStatus);
 
 
 module.exports = router;

@@ -71,7 +71,8 @@ module.exports = {
   saveImageData,
   // getAllImages,
   getLatestImage,
-  getImagesByStatus
+  getImagesByStatus,
+  getImageCollection
 
 };
 

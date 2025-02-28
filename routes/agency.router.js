@@ -26,6 +26,8 @@ router.get("/images/:status", async (req, res) => {
     res.status(500).json({ error: "Error fetching images by status" });
   }
 });
+router.put("/images/status/:incidentID", AgencyController.getUpdateStatus);
+//router.get("/images/status", AgencyController.getUpdateStatus);
 
 
 module.exports = router;

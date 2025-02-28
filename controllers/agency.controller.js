@@ -1,7 +1,7 @@
 const AgencyModel = require("../models/agency.model");
-const ImageModel = require("../models/camera.model"); 
+const { getImageCollection } = require("../models/camera.model"); 
 const bcrypt = require("bcrypt");
-
+const { ObjectId } = require('mongodb');
 // Create A New Agency
 async function createAgency(req, res) {
     try {
@@ -35,6 +35,7 @@ async function createAgency(req, res) {
 }
 
 
+
 async function getLatestImage(req, res) {
     try {
         const latestImage = await ImageModel.getLatestImage();
@@ -48,10 +49,54 @@ async function getLatestImage(req, res) {
     }
 }
 
+async function getUpdateStatus(req, res) {
+    try {
+        console.log("[getUpdateStatus] API hit with params:", req.params);
+
+        let { incidentID } = req.params;
+        incidentID = incidentID.replace(/^:/, ""); // Remove ":" from the incidentID
+
+        if (!incidentID) {
+            console.warn("[getUpdateStatus] Missing incident ID");
+            return res.status(400).json({ success: false, message: "Incident ID is required" });
+        }
+
+        let objectId;
+        try {
+            objectId = new ObjectId(incidentID);
+        } catch (error) {
+            console.error("[getUpdateStatus] Invalid ObjectId format:", incidentID);
+            return res.status(400).json({ success: false, message: "Invalid Incident ID format" });
+        }
+
+        const collection = await getImageCollection();
+        console.log(`[getUpdateStatus] Fetching incident with ID: ${incidentID}`);
+
+        const incident = await collection.findOne({ incidentID: incidentID });
+
+        if (!incident) {
+            console.warn(`[getUpdateStatus] Incident not found: ${incidentID}`);
+            return res.status(404).json({ success: false, message: "Incident not found" });
+        }
+
+        console.log(`[getUpdateStatus] Incident found:`, incident);
+
+        res.status(200).json({
+            success: true,
+            status: incident.status || "Unknown",
+            accepted: incident.accepted ?? false, // Ensures 'accepted' is always a boolean
+        });
+
+    } catch (error) {
+        console.error("[getUpdateStatus] Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
 
 module.exports = {
     createAgency,
-    // getImages,
+    getUpdateStatus,
     getLatestImage
 };
 

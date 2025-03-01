@@ -1,7 +1,7 @@
 const AgencyModel = require("../models/agency.model");
 const { getImageCollection } = require("../models/camera.model"); 
 const ImageModel = require("../models/camera.model")
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const { ObjectId } = require('mongodb');
 // Create A New Agency
 async function createAgency(req, res) {

@@ -1,5 +1,5 @@
 const { MongoClient } = require("mongodb");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 

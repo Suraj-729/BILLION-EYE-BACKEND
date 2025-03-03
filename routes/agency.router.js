@@ -29,5 +29,8 @@ router.get("/images/:status", async (req, res) => {
 router.put("/images/status/:incidentID", AgencyController.updateStatus);
 router.get("/images/status", AgencyController.getUpdateStatus);
 
+router.post("/addGroundStaff",AgencyController.addGroundStaff);
+
+
 
 module.exports = router;

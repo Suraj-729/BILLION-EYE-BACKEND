@@ -3,67 +3,104 @@ const { uploadImageToS3, getFileUrl } = require('../services/minio.service');
 const Camera = require('../models/camera.model');
 const amqp = require('amqplib');
 
-const queueName = 'image-Queue';
-
+ const queueName = 'image_queue';
+// const queueName = 'image-queue';
+ const rabbitmqHost = "192.168.205.177"; 
 //Function to Push the data to RabbitMq
 const PushToQueue = async (data) => {
    try{
-        const connection = await amqp.connect('amqp://localhost');
+        // const connection = await amqp.connect(`amqp://localhost`);
+         const connection = await amqp.connect(`amqp://${rabbitmqHost}:5672`);
         const channel = await connection.createChannel();
-        await channel.assertQueue(queueName, { durable: true });
+        let assertrespone = await channel.assertQueue(queueName, { durable: false  , maxLengthBytes: 30 * 1024 * 1024 });
+// delete data.base64String;
+        let respone = channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)), { persistent: true } );    
 
-        channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)), { persistent: true });    
-
-        console.log("📤 Message pushed to queue:", data);
+        console.log("📤 Message pushed to queue" ,assertrespone, respone, queueName);
         
         await channel.close();
+
         await connection.close();
+        
+        return true
    } catch (error){
         console.error("❌ Error pushing data to Queue:", error);
    }
 }
 
 
+// const uploadImage = async (req, res) => {
+//     try {
+//         // Check if file exists
+//         if (!req.file) {
+//             return res.status(400).json({ error: "No file uploaded" });
+//         }
+
+//         const { file } = req;
+//         const { userId, latitude, longitude, timestamp } = req.body;
+
+//         console.log("🟢 Request Body:", req.body);
+//         console.log("🟢 Uploaded File:", req.file);
+
+//         // Define bucket and object name
+//         const bucketName = process.env.MINIO_BUCKET_NAME;
+//         const objectName = `user-${userId}-${Date.now()}.png`;
+
+//         // Upload image to MinIO
+//         await uploadImageToS3(file, bucketName, objectName);
+
+//         // Get the image URL
+//         const imageUrl = await getFileUrl(bucketName, objectName);
+
+//         // Save image metadata to database
+//         const { imageId, incidentId } = await Camera.saveImageData({
+//             userId,
+//             latitude,
+//             longitude,
+//             timestamp,
+//             imageUrl, // Include the image URL
+//         });
+//           // Push to RabbitMQ ✅
+//           await PushToQueue({ userId, latitude, longitude, timestamp, imageUrl });
+
+//         res.status(200).json({ imageId, incidentId, imageUrl });
+//     } catch (error) {
+//         console.error("❌ Error uploading image:", error);
+//         res.status(500).json({ error: "Failed to upload image" });
+//     }
+// };
+
 const uploadImage = async (req, res) => {
     try {
-        // Check if file exists
-        if (!req.file) {
-            return res.status(400).json({ error: "No file uploaded" });
+        // Check if image data exists in the request body
+        const { base64String, userId, latitude, longitude, timestamp } = req.body;
+        console.log("Image received from the client");
+
+        if (!base64String) {
+            return res.status(400).json({ error: "No image data provided" });
         }
 
-        const { file } = req;
-        const { userId, latitude, longitude, timestamp } = req.body;
-
         console.log("🟢 Request Body:", req.body);
-        console.log("🟢 Uploaded File:", req.file);
 
-        // Define bucket and object name
-        const bucketName = process.env.MINIO_BUCKET_NAME;
-        const objectName = `user-${userId}-${Date.now()}.png`;
-
-        // Upload image to MinIO
-        await uploadImageToS3(file, bucketName, objectName);
-
-        // Get the image URL
-        const imageUrl = await getFileUrl(bucketName, objectName);
-
-        // Save image metadata to database
+        // Save base64 image data to the database
         const { imageId, incidentId } = await Camera.saveImageData({
             userId,
             latitude,
             longitude,
             timestamp,
-            imageUrl, // Include the image URL
+            base64String, // Store base64 image data directly
         });
-          // Push to RabbitMQ ✅
-          await PushToQueue({ userId, latitude, longitude, timestamp, imageUrl });
 
-        res.status(200).json({ imageId, incidentId, imageUrl });
+        // Push to RabbitMQ ✅
+        await PushToQueue({ userId, latitude, longitude, timestamp, base64String });
+
+        res.status(200).json({ imageId, incidentId });
     } catch (error) {
         console.error("❌ Error uploading image:", error);
         res.status(500).json({ error: "Failed to upload image" });
     }
 };
+
 
 // const getImageData = async(req, res) => {
 //     try{

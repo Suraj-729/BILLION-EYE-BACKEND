@@ -1,5 +1,6 @@
 const { MongoClient, ObjectId } = require("mongodb");
 const Minio = require("minio");
+const ExifParser = require("exif-parser");
 
 const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
@@ -12,7 +13,6 @@ const minioClient = new Minio.Client({
   secretKey: "admin",
 });
 
-
 async function getImageCollection() {
   if (!client.topology || !client.topology.isConnected()) {
     await client.connect();
@@ -23,58 +23,103 @@ async function getImageCollection() {
 
 async function saveImageData(imageData) {
   const collection = await getImageCollection();
-  console.log("[saveImageData] Accessed image collection.");
+  console.log("[saveImageData] Accessed image collection.", imageData);
 
-  // ✅ Generate Unique Incident ID
+  const incidentId = new ObjectId().toString();
 
-  const incidentId = new ObjectId().toString(); // Generate a unique incidentId
+  // ✅ Ensure correct GeoJSON location format
+  const location = {
+    type: "Point",
+    coordinates: [parseFloat(imageData.longitude), parseFloat(imageData.latitude)],
+  };
 
   const newImage = {
     incidentID: incidentId,
-    latitude: imageData.latitude,
-    longitude: imageData.longitude,
+    userId: imageData.userId || null,
+    location,
     timestamp: new Date(imageData.timestamp),
     imageUrl: imageData.imageUrl,
+    exif: imageData.exif || {},
+    status: imageData.status || "pending", // Default status
   };
-  console.log("[saveImageData] Image data:", newImage);
 
   const result = await collection.insertOne(newImage);
-  console.log("[saveImageData] Image data inserted:", {
-    imageId: result.insertedId,
-    imageUrl: imageData.imageUrl,
-    incidentID: incidentId,
-  });
-
   return result.insertedId;
 }
 
-
-
 async function getLatestImage() {
   const collection = await getImageCollection();
-  return await collection
-      .find({})
-      .sort({ timestamp: -1 }) // ✅ Correct field path
-      .limit(3)
-      .toArray();
-      
+  return await collection.find({}).sort({ timestamp: -1 }).limit(3).toArray();
 }
 
-// ✅ Fetch Images by Status
 async function getImagesByStatus(status) {
   const collection = await getImageCollection();
   return await collection.find({ status }).sort({ timestamp: -1 }).toArray();
 }
 
+async function extractExifMetadata(imageBuffer) {
+  try {
+    const parser = ExifParser.create(imageBuffer);
+    const result = parser.parse();
+    return {
+      latitude: result.tags.GPSLatitude || null,
+      longitude: result.tags.GPSLongitude || null,
+      timestamp: result.tags.DateTimeOriginal || null,
+      cameraModel: result.tags.Model || null,
+      make: result.tags.Make || null,
+    };
+  } catch (error) {
+    console.error("[extractExifMetadata] Error extracting EXIF data:", error);
+    return {};
+  }
+}
 
 module.exports = {
   saveImageData,
-  // getAllImages,
+  extractExifMetadata,
   getLatestImage,
   getImagesByStatus,
-  getImageCollection
-
+  getImageCollection,
 };
+
+
+
+
+// async function saveImageData(imageData) {
+//   const collection = await getImageCollection();
+//   console.log("[saveImageData] Accessed image collection.",imageData);
+
+//   // ✅ Generate Unique Incident ID
+
+//   const incidentId = new ObjectId().toString(); // Generate a unique incidentId
+
+
+//   // // ✅ Extract EXIF data
+//   // const exifData = await getExifData(location,timestamp,);
+//   // console.log("[saveImageData] EXIF Data:", exifData);
+//   const newImage = {
+//     incidentID: incidentId,
+     
+//     latitude: imageData.latitude,
+//     longitude: imageData.longitude,
+//     timestamp: new Date(imageData.timestamp),
+//     imageUrl: imageData.imageUrl,
+//      exif: exifData,
+//   };
+//   console.log("[saveImageData] Image data:", newImage);
+
+//   const result = await collection.insertOne(newImage);
+//   console.log("[saveImageData] Image data inserted:", {
+//     imageId: result.insertedId,
+//     imageUrl: imageData.imageUrl,
+//     incidentID: incidentId,
+//   });
+
+//   return result.insertedId;
+// }
+
+
+
 
 
 // async function getAllImages() {

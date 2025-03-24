@@ -1,6 +1,6 @@
 const { MongoClient, ObjectId } = require("mongodb");
 const Minio = require("minio");
-const ExifParser = require("exif-parser");
+// const ExifParser = require("exif-parser");
 
 const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
@@ -18,7 +18,7 @@ async function getImageCollection() {
     await client.connect();
   }
   const db = client.db("billoneyedata");
-  return db.collection("images");
+  return db.collection("events_data");
 }
 
 async function saveImageData(imageData) {
@@ -27,62 +27,69 @@ async function saveImageData(imageData) {
 
   const incidentId = new ObjectId().toString();
 
-  // ✅ Ensure correct GeoJSON location format
-  const location = {
-    type: "Point",
-    coordinates: [parseFloat(imageData.longitude), parseFloat(imageData.latitude)],
-  };
+  // ✅ Ensure correct GeoJSON format
+  const longitude = parseFloat(imageData.location?.coordinates?.[0]);
+  const latitude = parseFloat(imageData.location?.coordinates?.[1]);
+
+  if (isNaN(longitude) || isNaN(latitude)) {
+    console.error("❌ Error: Invalid longitude/latitude in saveImageData:", longitude, latitude);
+    throw new Error("Invalid location data: longitude/latitude are not valid numbers");
+  }
 
   const newImage = {
     incidentID: incidentId,
     userId: imageData.userId || null,
-    location,
-    timestamp: new Date(imageData.timestamp),
-    imageUrl: imageData.imageUrl,
+    location: {
+      type: "Point",
+      coordinates: [longitude, latitude], // ✅ Ensure correct format
+    },
+    timestamp: new Date(imageData.timestamp) || new Date(),
+    imageUrl: imageData.imageUrl || null,
     exif: imageData.exif || {},
-    status: imageData.status || "pending", // Default status
+    status: imageData.status || "pending",
   };
 
   const result = await collection.insertOne(newImage);
-  return result.insertedId;
+  return { imageId: result.insertedId, incidentId };
 }
+
 
 async function getLatestImage() {
   const collection = await getImageCollection();
   return await collection.find({}).sort({ timestamp: -1 }).limit(3).toArray();
 }
 
-async function getImagesByStatus(status) {
-  const collection = await getImageCollection();
-  return await collection.find({ status }).sort({ timestamp: -1 }).toArray();
-}
+// async function getImagesByStatus(status) {
+//   const collection = await getImageCollection();
+//   return await collection.find({ status }).sort({ timestamp: -1 }).toArray();
+// }
 
-async function extractExifMetadata(imageBuffer) {
-  try {
-    const parser = ExifParser.create(imageBuffer);
-    const result = parser.parse();
-    return {
-      latitude: result.tags.GPSLatitude || null,
-      longitude: result.tags.GPSLongitude || null,
-      timestamp: result.tags.DateTimeOriginal || null,
-      cameraModel: result.tags.Model || null,
-      make: result.tags.Make || null,
-    };
-  } catch (error) {
-    console.error("[extractExifMetadata] Error extracting EXIF data:", error);
-    return {};
-  }
-}
 
 module.exports = {
   saveImageData,
-  extractExifMetadata,
+  // extractExifMetadata,
   getLatestImage,
-  getImagesByStatus,
+  // getImagesByStatus,
   getImageCollection,
 };
 
 
+// async function extractExifMetadata(imageBuffer) {
+//   try {
+//     const parser = ExifParser.create(imageBuffer);
+//     const result = parser.parse();
+//     return {
+//       latitude: result.tags.GPSLatitude || null,
+//       longitude: result.tags.GPSLongitude || null,
+//       timestamp: result.tags.DateTimeOriginal || null,
+//       cameraModel: result.tags.Model || null,
+//       make: result.tags.Make || null,
+//     };
+//   } catch (error) {
+//     console.error("[extractExifMetadata] Error extracting EXIF data:", error);
+//     return {};
+//   }
+// }
 
 
 // async function saveImageData(imageData) {

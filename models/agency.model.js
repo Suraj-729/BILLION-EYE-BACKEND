@@ -1,5 +1,6 @@
 const { MongoClient } = require("mongodb");
 const bcrypt = require("bcryptjs");
+
 const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 
@@ -88,75 +89,125 @@ const AgencyModel = {
         }
     },
 
-    async addGroundStaff(agencyId, staffName, phoneNumber) {
-        const groundStaffCollection = await getGroundStaffCollection();
-        const agencyCollection = await getAgencyCollection();
+    // async addGroundStaff(agencyId, staffName, phoneNumber) {
+    //     const groundStaffCollection = await getGroundStaffCollection();
+    //     const agencyCollection = await getAgencyCollection();
     
-        // ✅ Fix 1: Define regex correctly (Remove backticks)
-        const phoneRegex = /^\d{10}$/;
+    //     // ✅ Fix 1: Define regex correctly (Remove backticks)
+    //     const phoneRegex = /^\d{10}$/;
     
-        // ✅ Fix 2: Use `.test()` instead of `.text()`
-        if (!phoneRegex.test(phoneNumber)) {
-            throw new Error("Invalid phone number. Must be 10 digits.");
-        }
+    //     // ✅ Fix 2: Use `.test()` instead of `.text()`
+    //     if (!phoneRegex.test(phoneNumber)) {
+    //         throw new Error("Invalid phone number. Must be 10 digits.");
+    //     }
     
-        const existingAgency = await agencyCollection.findOne({ AgencyId: agencyId });
-        if (!existingAgency) {
-            throw new Error("Agency not found. Please provide a valid AgencyId.");
-        }
+    //     const existingAgency = await agencyCollection.findOne({ AgencyId: agencyId });
+    //     if (!existingAgency) {
+    //         throw new Error("Agency not found. Please provide a valid AgencyId.");
+    //     }
     
-        const staffId = `GS-${Math.floor(1000 + Math.random() * 9000)}`;
-        const staffDetails = {
-            StaffId: staffId,
-            AgencyId: agencyId,
-            Name: staffName,
-            PhoneNumber: phoneNumber,
-            CreatedAt: new Date(),
-        };
+    //     const staffId = `GS-${Math.floor(1000 + Math.random() * 9000)}`;
+    //     const staffDetails = {
+    //         StaffId: staffId,
+    //         AgencyId: agencyId,
+    //         Name: staffName,
+    //         PhoneNumber: phoneNumber,
+    //         CreatedAt: new Date(),
+    //     };
     
-        try {
-            await groundStaffCollection.insertOne(staffDetails);
-            console.log("[addGroundStaff] New ground staff added:", { staffId, staffName });
+    //     try {
+    //         await groundStaffCollection.insertOne(staffDetails);
+    //         console.log("[addGroundStaff] New ground staff added:", { staffId, staffName });
     
-            return staffId;
-        } catch (error) {
-            console.error("[addGroundStaff] MongoDB Insert Error:", error);
-            throw new Error("Failed to add ground staff.");
-        }
-    },
+    //         return staffId;
+    //     } catch (error) {
+    //         console.error("[addGroundStaff] MongoDB Insert Error:", error);
+    //         throw new Error("Failed to add ground staff.");
+    //     }
+    // },
 
     // async getGroundStaff(agencyId) {
-    //     if (!agencyId) {
-    //         throw new Error("Agency ID is required.");
+    //     if (!agencyId || typeof agencyId !== "string") {
+    //         throw new Error("Invalid Agency ID.");
     //     }
     
     //     const groundStaffCollection = await getGroundStaffCollection();
-    
-    //     // Fetch all ground staff under the given agency
     //     const staffList = await groundStaffCollection.find({ AgencyId: agencyId }).toArray();
     
-    //     if (!staffList || staffList.length === 0) {
+    //     if (!staffList.length) {
     //         throw new Error("No ground staff found for this agency.");
     //     }
     
     //     return staffList;
-    // }
-    async getGroundStaff(agencyId) {
-        if (!agencyId || typeof agencyId !== "string") {
-            throw new Error("Invalid Agency ID.");
+    // },
+
+  
+    async getAgencyDashboardCheck(agencyId) {
+        try {
+            if (!agencyId) throw new Error("Agency ID is required.");
+
+            const db = client.db("billoneyedata");
+
+            // Ensure AgencyId is treated as a string
+            const query = { AgencyId: agencyId };
+
+            // Fetch agency details
+            const agency = await db.collection("agencies").findOne(query, {
+                projection: { AgencyName: 1, AgencyId: 1, _id: 0 }
+            });
+
+            if (!agency) throw new Error("Agency not found.");
+
+            // Fetch events assigned to this agency
+            const assignedEvents = await db.collection("events_data")
+                .find({ assigned_agency: agency.AgencyId })
+                .project({
+                    _id: 0,
+                    event_id: 1,
+                    description: 1,
+                    assigned_agency: 1,
+                    assignment_time: 1,
+                    ground_staff: 1,
+                    incidentID: 1,
+                    userId: 1,
+                    location: 1,
+                    timestamp: 1,
+                    imageUrl: 1,
+                    exif: 1,
+                    status: 1
+                })
+                .toArray();
+
+            // Convert timestamps to ISO format
+            const formattedEvents = assignedEvents.map(event => ({
+                ...event,
+                timestamp: event.timestamp instanceof Date ? event.timestamp.toISOString() : event.timestamp
+            }));
+
+            return {
+                AgencyName: agency.AgencyName,
+                AgencyId: agency.AgencyId,
+                assignedEvents: formattedEvents
+            };
+        } catch (error) {
+            console.error("[getAgencyDashboardCheck] Error:", error.message);
+            throw new Error(error.message);
         }
-    
-        const groundStaffCollection = await getGroundStaffCollection();
-        const staffList = await groundStaffCollection.find({ AgencyId: agencyId }).toArray();
-    
-        if (!staffList.length) {
-            throw new Error("No ground staff found for this agency.");
-        }
-    
-        return staffList;
     }
     
-    
+// async getLatestEvent() {
+//     try {
+//         const collection = await getCollection("events_data");
+//         return await collection.find({}).sort({ timestamp: -1 }).limit(3).toArray();
+//     } catch (error) {
+//         console.error("[getLatestEvent] Error:", error.message);
+//         throw new Error("Failed to fetch latest events");
+//     }
+// }
+
+
+
+
 };
 
 

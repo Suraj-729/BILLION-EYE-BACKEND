@@ -1,6 +1,6 @@
 const { uploadImageToS3, getFileUrl } = require("../services/minio.service");
 
-const piexif = require("piexifjs");
+// const piexif = require("piexifjs");
 const Camera = require("../models/camera.model");
 const amqp = require("amqplib");
 
@@ -18,14 +18,11 @@ const PushToQueue = async (data) => {
       const channel = await connection.createChannel();
       await channel.assertQueue(queueName, { durable: false });
 
-      // ✅ Extract EXIF data before sending the message
-      const exifData = await extractExifMetadata(data.base64String);
-      console.log("📝 EXIF Data to be sent:", exifData);
-
+      
       // ✅ Attach EXIF data to the message payload
       const messagePayload = {
           ...data,
-          exifData,  // ✅ Now properly included
+            // ✅ Now properly included
       };
 
       let response = channel.sendToQueue(
@@ -46,36 +43,9 @@ const PushToQueue = async (data) => {
 };
 
 
-
-
-async function extractExifMetadata(base64String) {
-  try {
-    // Convert the Base64 string to a binary string
-    const binaryString = Buffer.from(base64String, "base64").toString("binary");
-
-    // Extract EXIF data
-    const exifObj = piexif.load(binaryString);
-    console.log("📝 Parsed EXIF Data:", exifObj);
-
-    return {
-      latitude: exifObj.GPS[piexif.GPSIFD.GPSLatitude] || null,
-      longitude: exifObj.GPS[piexif.GPSIFD.GPSLongitude] || null,
-      timestamp: exifObj.Exif[piexif.ExifIFD.DateTimeOriginal] || null,
-      cameraModel: exifObj.Exif[piexif.ExifIFD.Model] || null,
-      make: exifObj.Exif[piexif.ExifIFD.Make] || null,
-    };
-  } catch (error) {
-    console.error("[extractExifMetadata] Error extracting EXIF data:", error);
-    return {};
-  }
-}
-
-
-// 
 const uploadImage = async (req, res) => {
   try {
-    const { base64String, userId, latitude, longitude, timestamp } = req.body;
-    console.log("Image received from the client");
+    const { base64String, userId, location, timestamp } = req.body;
 
     if (!base64String) {
       return res.status(400).json({ error: "No image data provided" });
@@ -83,35 +53,55 @@ const uploadImage = async (req, res) => {
 
     console.log("🟢 Request Body:", req.body);
 
-    // ✅ Extract EXIF data before pushing to RabbitMQ
-    const exifData = await extractExifMetadata(Buffer.from(base64String, "base64"));
+    // ✅ Ensure location exists and is properly formatted
+    if (!location || !Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
+      console.error("❌ Error: Invalid location format received:", location);
+      return res.status(400).json({ error: "Invalid location format" });
+    }
 
-    // ✅ Format location in GeoJSON format
-    const location = {
-      type: "Point",
-      coordinates: [parseFloat(longitude), parseFloat(latitude)] // Ensure correct order and numeric type
-    };
+    const [longitude, latitude] = location.coordinates;
 
-    // ✅ Push image data to RabbitMQ
+    if (typeof latitude !== "number" || typeof longitude !== "number" || isNaN(latitude) || isNaN(longitude)) {
+      console.error("❌ Error: Invalid latitude or longitude received:", latitude, longitude);
+      return res.status(400).json({ error: "Invalid latitude or longitude" });
+    }
+
+    console.log("📍 Processed Location Data:", { type: "Point", coordinates: [longitude, latitude] });
+
+    //✅ Push image data to RabbitMQ
     const queuePushed = await PushToQueue({
       userId,
-      location, // ✅ Ensure location is in the correct format
+      location: { type: "Point", coordinates: [longitude, latitude] },
       timestamp,
       base64String,
-      exifData
     });
+    
 
+    
     if (!queuePushed) {
       return res.status(500).json({ error: "Failed to push image data to queue" });
     }
 
-    // ✅ Save image data, including EXIF, to MongoDB
+    // const queuePushed = await PushToQueue(
+    //   JSON.stringify({
+    //     userId: userId,  // Directly passing values
+    //     location: { type: "Point", coordinates: [longitude, latitude] }, // Proper object format
+    //     timestamp: timestamp,
+    //     base64String: base64String
+    //   })
+    // );
+    
+    
+    // if (!queuePushed) {
+    //   return res.status(500).json({ error: "Failed to push image data to queue" });
+    // }
+
+    // ✅ Save image data in MongoDB
     const { imageId, incidentId } = await Camera.saveImageData({
       userId,
-      location, // ✅ Ensure location is correctly stored
+      location: { type: "Point", coordinates: [longitude, latitude] },
       timestamp,
       base64String,
-      exif: exifData,
     });
 
     res.status(200).json({ imageId, incidentId });
@@ -120,6 +110,57 @@ const uploadImage = async (req, res) => {
     res.status(500).json({ error: "Failed to upload image" });
   }
 };
+
+
+// const uploadImage = async (req, res) => {
+//   try {
+//     const { base64String, userId, latitude, longitude, timestamp } = req.body;
+
+//     if (!base64String) {
+//       return res.status(400).json({ error: "No image data provided" });
+//     }
+
+//     console.log("🟢 Request Body:", req.body);
+
+//     // ✅ Ensure latitude and longitude are numbers
+//     if (typeof latitude !== "number" || typeof longitude !== "number" || isNaN(latitude) || isNaN(longitude)) {
+//       console.error("❌ Error: Invalid latitude or longitude received:", latitude, longitude);
+//       return res.status(400).json({ error: "Invalid latitude or longitude" });
+//     }
+
+//     const location = {
+//       type: "Point",
+//       coordinates: [longitude, latitude], // ✅ MongoDB expects [longitude, latitude]
+//     };
+
+//     console.log("📍 Processed Location Data:", location);
+
+//     // ✅ Push image data to RabbitMQ
+//     const queuePushed = await PushToQueue({
+//       userId,
+//       location,
+//       timestamp,
+//       base64String,
+//     });
+
+//     if (!queuePushed) {
+//       return res.status(500).json({ error: "Failed to push image data to queue" });
+//     }
+
+//     // ✅ Save image data in MongoDB
+//     const { imageId, incidentId } = await Camera.saveImageData({
+//       userId,
+//       location,
+//       timestamp,
+//       base64String,
+//     });
+
+//     res.status(200).json({ imageId, incidentId });
+//   } catch (error) {
+//     console.error("❌ Error uploading image:", error);
+//     res.status(500).json({ error: "Failed to upload image" });
+//   }
+// };
 
 
 
@@ -141,10 +182,83 @@ const getAllincdents = async (req, res) => {
   }
 };
 
-module.exports = { uploadImage, getAllincdents , extractExifMetadata}; 
+module.exports = { uploadImage, getAllincdents }; 
 
 
 
+
+// async function extractExifMetadata(base64String) {
+//   try {
+//     // Convert the Base64 string to a binary string
+//     const binaryString = Buffer.from(base64String, "base64").toString("binary");
+
+//     // Extract EXIF data
+//     const exifObj = piexif.load(binaryString);
+//     console.log("📝 Parsed EXIF Data:", exifObj);
+
+//     return {
+//       latitude: exifObj.GPS[piexif.GPSIFD.GPSLatitude] || null,
+//       longitude: exifObj.GPS[piexif.GPSIFD.GPSLongitude] || null,
+//       timestamp: exifObj.Exif[piexif.ExifIFD.DateTimeOriginal] || null,
+//       cameraModel: exifObj.Exif[piexif.ExifIFD.Model] || null,
+//       make: exifObj.Exif[piexif.ExifIFD.Make] || null,
+//     };
+//   } catch (error) {
+//     console.error("[extractExifMetadata] Error extracting EXIF data:", error);
+//     return {};
+//   }
+// }
+
+
+// 
+// const uploadImage = async (req, res) => {
+//   try {
+//     const { base64String, userId, latitude, longitude, timestamp } = req.body;
+//     console.log("Image received from the client");
+
+//     if (!base64String) {
+//       return res.status(400).json({ error: "No image data provided" });
+//     }
+
+//     console.log("🟢 Request Body:", req.body);
+
+//     // ✅ Extract EXIF data before pushing to RabbitMQ
+//     const exifData = await extractExifMetadata(Buffer.from(base64String, "base64"));
+
+//     // ✅ Format location in GeoJSON format
+//     const location = {
+//       type: "Point",
+//       coordinates: [parseFloat(longitude), parseFloat(latitude)] // Ensure correct order and numeric type
+//     };
+
+//     // ✅ Push image data to RabbitMQ
+//     const queuePushed = await PushToQueue({
+//       userId,
+//       location, // ✅ Ensure location is in the correct format
+//       timestamp,
+//       base64String,
+//       exifData
+//     });
+
+//     if (!queuePushed) {
+//       return res.status(500).json({ error: "Failed to push image data to queue" });
+//     }
+
+//     // ✅ Save image data, including EXIF, to MongoDB
+//     const { imageId, incidentId } = await Camera.saveImageData({
+//       userId,
+//       location, // ✅ Ensure location is correctly stored
+//       timestamp,
+//       base64String,
+//       exif: exifData,
+//     });
+
+//     res.status(200).json({ imageId, incidentId });
+//   } catch (error) {
+//     console.error("❌ Error uploading image:", error);
+//     res.status(500).json({ error: "Failed to upload image" });
+//   }
+// };
 
 
 // const uploadImage = async (req, res) => {

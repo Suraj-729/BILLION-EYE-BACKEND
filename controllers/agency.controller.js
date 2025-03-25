@@ -1,4 +1,5 @@
-const AgencyModel = require("../models/agency.model");
+const AgencyModel  = require("../models/agency.model");
+
 const { getImageCollection } = require("../models/camera.model");
 const ImageModel = require("../models/camera.model");
 const bcrypt = require("bcryptjs");
@@ -240,6 +241,25 @@ async function createAgency(req, res) {
 // };
 
 
+const getEventStatus = async (req, res) => {
+  try {
+      const { event_id } = req.params;
+
+      // Fetch the event details using the correct function from AgencyModel
+      const event = await AgencyModel.getEventById(event_id);
+
+      if (!event) {
+          return res.status(404).json({ message: "Event not found." });
+      }
+
+      return res.status(200).json({ status: event.status });
+  } catch (error) {
+      console.error("[getEventStatus] Error:", error);
+      return res.status(500).json({ message: "Server error." });
+  }
+};
+
+
 
 const getAgencyDashboard = async (req, res) => {
   try {
@@ -264,6 +284,28 @@ const getAgencyDashboard = async (req, res) => {
   }
 };
 
+// Controller to update event status
+const updateEventStatus = async (req, res) => {
+  try {
+      const { event_id } = req.params; // Get event_id from URL
+      const { status } = req.body; // Get new status from request body
+
+      if (!status) {
+          return res.status(400).json({ message: "Status is required." });
+      }
+
+      const result = await AgencyModel.updateEventStatus(event_id, status);
+
+      if (result.modifiedCount === 0) {
+          return res.status(404).json({ message: "Event not found or status unchanged." });
+      }
+
+      return res.status(200).json({ message: "Event status updated successfully." });
+  } catch (error) {
+      console.error("[updateEventStatus] Error:", error);
+      return res.status(500).json({ message: "Server error." });
+  }
+};
 
 
 // const getLatestEvent = async (req, res) => {
@@ -287,6 +329,25 @@ const getAgencyDashboard = async (req, res) => {
 // };
 
 
+const getEventsById = async (req, res) => {
+  try {
+      const { event_id } = req.params;
+      console.log("Request Params:", req.params);
+      
+      const collection = await AgencyModel.getEventsCollection(); // Call function correctly
+      const event = await collection.findOne({ event_id: event_id });
+
+      if (!event) {
+          return res.status(404).json({ error: "Event not found" });
+      }
+
+      res.status(200).json(event);
+  } catch (error) {
+      console.error("Error fetching event:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createAgency,
   // getUpdateStatus,
@@ -295,6 +356,9 @@ module.exports = {
   // addGroundStaff,
   // fetchEventWithAgency,
   getAgencyDashboard,
+  getEventStatus,
+  updateEventStatus,
+  getEventsById
   
 //   getGroundStaff,
 };

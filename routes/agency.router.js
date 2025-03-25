@@ -1,10 +1,22 @@
 const express = require("express");
 const router = express.Router();
-const {getImagesByStatus} = require("../models/camera.model");
-// const ImageController = require('../controllers/images.controller')
+
 const AgencyController = require('../controllers/agency.controller');
 
 router.post('/agencyId', AgencyController.createAgency);
+
+router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
+router.get("/events_data/status/:event_id", AgencyController.getEventStatus);
+// Route to update event status
+router.put("/events_data/status/:event_id", AgencyController.updateEventStatus);
+
+router.get("/events_data/:event_id", AgencyController.getEventsById);
+
+module.exports = router;
+
+//const {getImagesByStatus} = require("../models/camera.model");
+// const ImageController = require('../controllers/images.controller')
+
 // ✅ Fetch Recent Images
 
 // router.get('/user/images', ImageController.getImageData);
@@ -32,6 +44,3 @@ router.post('/agencyId', AgencyController.createAgency);
 // router.post("/addGroundStaff",AgencyController.addGroundStaff);
 
 // router.get("/event-with-agency/:eventId", AgencyController.fetchEventWithAgency);
-router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
-
-module.exports = router;

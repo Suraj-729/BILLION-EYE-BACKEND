@@ -12,6 +12,8 @@ async function getAgencyCollection() {
     return db.collection("agencies");
 }
 
+
+
 async function getCriticalCollection() {
     const db = client.db("billoneyedata");
     return db.collection("critical_agencies");
@@ -89,58 +91,7 @@ const AgencyModel = {
         }
     },
 
-    // async addGroundStaff(agencyId, staffName, phoneNumber) {
-    //     const groundStaffCollection = await getGroundStaffCollection();
-    //     const agencyCollection = await getAgencyCollection();
     
-    //     // ✅ Fix 1: Define regex correctly (Remove backticks)
-    //     const phoneRegex = /^\d{10}$/;
-    
-    //     // ✅ Fix 2: Use `.test()` instead of `.text()`
-    //     if (!phoneRegex.test(phoneNumber)) {
-    //         throw new Error("Invalid phone number. Must be 10 digits.");
-    //     }
-    
-    //     const existingAgency = await agencyCollection.findOne({ AgencyId: agencyId });
-    //     if (!existingAgency) {
-    //         throw new Error("Agency not found. Please provide a valid AgencyId.");
-    //     }
-    
-    //     const staffId = `GS-${Math.floor(1000 + Math.random() * 9000)}`;
-    //     const staffDetails = {
-    //         StaffId: staffId,
-    //         AgencyId: agencyId,
-    //         Name: staffName,
-    //         PhoneNumber: phoneNumber,
-    //         CreatedAt: new Date(),
-    //     };
-    
-    //     try {
-    //         await groundStaffCollection.insertOne(staffDetails);
-    //         console.log("[addGroundStaff] New ground staff added:", { staffId, staffName });
-    
-    //         return staffId;
-    //     } catch (error) {
-    //         console.error("[addGroundStaff] MongoDB Insert Error:", error);
-    //         throw new Error("Failed to add ground staff.");
-    //     }
-    // },
-
-    // async getGroundStaff(agencyId) {
-    //     if (!agencyId || typeof agencyId !== "string") {
-    //         throw new Error("Invalid Agency ID.");
-    //     }
-    
-    //     const groundStaffCollection = await getGroundStaffCollection();
-    //     const staffList = await groundStaffCollection.find({ AgencyId: agencyId }).toArray();
-    
-    //     if (!staffList.length) {
-    //         throw new Error("No ground staff found for this agency.");
-    //     }
-    
-    //     return staffList;
-    // },
-
   
     async getAgencyDashboardCheck(agencyId) {
         try {
@@ -193,19 +144,44 @@ const AgencyModel = {
             console.error("[getAgencyDashboardCheck] Error:", error.message);
             throw new Error(error.message);
         }
-    }
+    },
     
-// async getLatestEvent() {
-//     try {
-//         const collection = await getCollection("events_data");
-//         return await collection.find({}).sort({ timestamp: -1 }).limit(3).toArray();
-//     } catch (error) {
-//         console.error("[getLatestEvent] Error:", error.message);
-//         throw new Error("Failed to fetch latest events");
-//     }
-// }
+    async updateEventStatus(event_id , newStatus) {
+        try {
+              const eventCollection = await getEventsCollection();
+              
+              const  result = await eventCollection.updateOne(
+                { event_id: event_id },
+                { $set: { status: newStatus } }
+              );
 
+              return result;
+        } catch (error) {
+            console.error("[updateEventStatus] Database Error:", error);
+            throw new Error("Database Error");
+        }
+    },
 
+    async getEventById(event_id) {
+        try {
+            const eventCollection = await getEventsCollection();
+            return await eventCollection.findOne(
+                { event_id: event_id },
+                { projection: { status: 1, _id: 0 } }
+            );
+        } catch (error) {
+            console.error("[getEventById] Database Error:", error);
+            throw new Error("Database Error");
+        }
+    },
+    async getEventsCollection() {
+        if (!client.topology || !client.topology.isConnected()) {
+            await client.connect();
+        }
+        const db = client.db("billoneyedata");
+        return db.collection("events_data");
+    },
+   
 
 
 };
@@ -217,3 +193,58 @@ const AgencyModel = {
 
 // const addGroundStaff = async 
 module.exports = AgencyModel;
+
+
+
+
+// async addGroundStaff(agencyId, staffName, phoneNumber) {
+    //     const groundStaffCollection = await getGroundStaffCollection();
+    //     const agencyCollection = await getAgencyCollection();
+    
+    //     // ✅ Fix 1: Define regex correctly (Remove backticks)
+    //     const phoneRegex = /^\d{10}$/;
+    
+    //     // ✅ Fix 2: Use `.test()` instead of `.text()`
+    //     if (!phoneRegex.test(phoneNumber)) {
+    //         throw new Error("Invalid phone number. Must be 10 digits.");
+    //     }
+    
+    //     const existingAgency = await agencyCollection.findOne({ AgencyId: agencyId });
+    //     if (!existingAgency) {
+    //         throw new Error("Agency not found. Please provide a valid AgencyId.");
+    //     }
+    
+    //     const staffId = `GS-${Math.floor(1000 + Math.random() * 9000)}`;
+    //     const staffDetails = {
+    //         StaffId: staffId,
+    //         AgencyId: agencyId,
+    //         Name: staffName,
+    //         PhoneNumber: phoneNumber,
+    //         CreatedAt: new Date(),
+    //     };
+    
+    //     try {
+    //         await groundStaffCollection.insertOne(staffDetails);
+    //         console.log("[addGroundStaff] New ground staff added:", { staffId, staffName });
+    
+    //         return staffId;
+    //     } catch (error) {
+    //         console.error("[addGroundStaff] MongoDB Insert Error:", error);
+    //         throw new Error("Failed to add ground staff.");
+    //     }
+    // },
+
+    // async getGroundStaff(agencyId) {
+    //     if (!agencyId || typeof agencyId !== "string") {
+    //         throw new Error("Invalid Agency ID.");
+    //     }
+    
+    //     const groundStaffCollection = await getGroundStaffCollection();
+    //     const staffList = await groundStaffCollection.find({ AgencyId: agencyId }).toArray();
+    
+    //     if (!staffList.length) {
+    //         throw new Error("No ground staff found for this agency.");
+    //     }
+    
+    //     return staffList;
+    // },

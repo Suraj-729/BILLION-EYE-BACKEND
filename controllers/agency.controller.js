@@ -1,4 +1,5 @@
 const AgencyModel  = require("../models/agency.model");
+console.log(AgencyModel);
 
 const { getImageCollection } = require("../models/camera.model");
 const ImageModel = require("../models/camera.model");
@@ -261,6 +262,29 @@ const getEventStatus = async (req, res) => {
 
 
 
+// const getAgencyDashboard = async (req, res) => {
+//   try {
+//       const { agencyId } = req.params;
+
+//       if (!agencyId) {
+//           return res.status(400).json({ error: "Agency ID is required." });
+//       }
+
+//       console.log(`Fetching dashboard for agencyId: ${agencyId}`);
+
+//       const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
+
+//       if (!agencyData) {
+//           return res.status(404).json({ message: "Agency not found." });
+//       }
+
+//       return res.status(200).json(agencyData);
+//   } catch (error) {
+//       console.error("[getAgencyDashboard] Error:", error.message);
+//       return res.status(500).json({ error: error.message || "Internal Server Error" });
+//   }
+// };
+
 const getAgencyDashboard = async (req, res) => {
   try {
       const { agencyId } = req.params;
@@ -274,7 +298,7 @@ const getAgencyDashboard = async (req, res) => {
       const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
 
       if (!agencyData) {
-          return res.status(404).json({ message: "Agency not found." });
+          return res.status(404).json({ message: "Agency not found or no events assigned." });
       }
 
       return res.status(200).json(agencyData);
@@ -283,6 +307,7 @@ const getAgencyDashboard = async (req, res) => {
       return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 };
+
 
 // Controller to update event status
 const updateEventStatus = async (req, res) => {
@@ -306,27 +331,23 @@ const updateEventStatus = async (req, res) => {
       return res.status(500).json({ message: "Server error." });
   }
 };
-
-
-// const getLatestEvent = async (req, res) => {
+// const getEventsById = async (req, res) => {
 //   try {
-//     const latestEvents = await AgencyModel.getLatestEvent(); 
+//     const { event_id } = req.params;
+//     const event = await AgencyModel.getEventById(event_id);
 
-//     if (!latestEvents || latestEvents.length === 0) {
-//       return res.status(404).json({ success: false, message: "No events found" });
+//     if (!event) {
+//       return res.status(404).json({ error: "Event not found" });
 //     }
 
-//     // Send a single response combining agency data and latest events
-//     res.status(200).json({
-//       success: true,
-//       agencyData: req.agencyData, 
-//       latestEvents
-//     });
+//     res.status(200).json(event);
 //   } catch (error) {
-//     console.error("[getLatestEvent] Error:", error.message);
-//     res.status(500).json({ success: false, message: "Failed to fetch latest events" });
+//     console.error("Error fetching event:", error);
+//     res.status(500).json({ error: "Internal Server Error" });
 //   }
 // };
+
+
 
 
 const getEventsById = async (req, res) => {
@@ -347,6 +368,15 @@ const getEventsById = async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+
+
+
+
+
+
+
 
 module.exports = {
   createAgency,

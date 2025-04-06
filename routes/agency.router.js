@@ -6,13 +6,17 @@ const AgencyController = require('../controllers/agency.controller');
 router.post('/agencyId', AgencyController.createAgency);
 
 router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
-router.get("/events_data/status/:event_id", AgencyController.getEventStatus);
-// Route to update event status
-router.put("/events_data/status/:event_id", AgencyController.updateEventStatus);
 
-router.get("/events_data/:event_id", AgencyController.getEventsById);
+router.get("/events/status/:event_id", AgencyController.getEventStatus);
+
+// Route to update event status
+router.put("/events/status/:event_id", AgencyController.updateEventStatus);
+
+router.get("/events/:event_id", AgencyController.getEventsById);
 
 module.exports = router;
+
+
 
 //const {getImagesByStatus} = require("../models/camera.model");
 // const ImageController = require('../controllers/images.controller')
@@ -28,11 +32,15 @@ module.exports = router;
 //     const validStatuses = ["ACTIVE", "ASSIGNED", "RESOLVED"];
     
 //     if (!validStatuses.includes(status.toUpperCase())) {
+
 //       return res.status(400).json({ error: "Invalid status" });
+
 //     }
 
 //     const images = await getImagesByStatus(status.toUpperCase());
+
 //     res.json(images);
+
 //   } catch (error) {
 //     res.status(500).json({ error: "Error fetching images by status" });
 //   }

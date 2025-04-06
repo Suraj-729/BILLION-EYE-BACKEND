@@ -18,7 +18,7 @@ async function getImageCollection() {
     await client.connect();
   }
   const db = client.db("billoneyedata");
-  return db.collection("events_data");
+  return db.collection("events");
 }
 
 async function saveImageData(imageData) {

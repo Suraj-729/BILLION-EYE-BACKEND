@@ -3,18 +3,19 @@ const { uploadImageToS3, getFileUrl } = require("../services/minio.service");
 // const piexif = require("piexifjs");
 const Camera = require("../models/camera.model");
 const amqp = require("amqplib");
-
- const queueName = 'image_queue';
- //const queueName = "image-queue";
-  const rabbitmqHost = "192.168.192.177";
+ 
+     const queueName = 'image_queue';
+    //  const queueName = "image-queue";
+   const rabbitmqHost = "192.168.192.177";
 //Function to Push the data to RabbitMq
 
 const PushToQueue = async (data) => {
   console.log(data);
 
   try {
-      //const connection = await amqp.connect(`amqp://localhost`);
-     const connection = await amqp.connect(`amqp://${rabbitmqHost}:5672`);
+      //  const connection = await amqp.connect(`amqp://rabbitmq`);
+        // const connection = await amqp.connect(`amqp://localhost`);
+         const connection = await amqp.connect(`amqp://${rabbitmqHost}:5672`);
       const channel = await connection.createChannel();
       await channel.assertQueue(queueName, { durable: false });
 

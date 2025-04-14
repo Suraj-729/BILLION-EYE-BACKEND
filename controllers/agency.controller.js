@@ -1,6 +1,8 @@
 const AgencyModel  = require("../models/agency.model");
 console.log(AgencyModel);
 
+
+
 const { getImageCollection } = require("../models/camera.model");
 const ImageModel = require("../models/camera.model");
 const bcrypt = require("bcryptjs");
@@ -350,25 +352,45 @@ const updateEventStatus = async (req, res) => {
 
 
 
-const getEventsById = async (req, res) => {
-  try {
-      const { event_id } = req.params;
-      console.log("Request Params:", req.params);
+// const getEventsById = async (req, res) => {
+//   try {
+//       const { event_id } = req.params;
+//       console.log("Request Params:", req.params);
       
-      const collection = await AgencyModel.getEventsCollection(); // Call function correctly
-      const event = await collection.findOne({ event_id: event_id });
+//       const collection = await AgencyModel.getEventsCollection(); // Call function correctly
+//       const event = await collection.findOne({ event_id: event_id });
 
-      if (!event) {
-          return res.status(404).json({ error: "Event not found" });
-      }
+//       if (!event) {
+//           return res.status(404).json({ error: "Event not found" });
+//       }
 
-      res.status(200).json(event);
+//       res.status(200).json(event);
+//   } catch (error) {
+//       console.error("Error fetching event:", error);
+//       res.status(500).json({ error: "Internal Server Error" });
+//   }
+// };
+
+const  getEventsById= async (req, res)  =>{
+  try {
+    const { event_id } = req.params;
+
+    // Parse optional query params
+    const fields = req.query.fields ? req.query.fields.split(",") : [];
+    const includeImageUrl = req.query.includeImageUrl !== "false"; // Defaults to true
+
+    const event = await AgencyModel.getEventById(event_id, fields, includeImageUrl);
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    res.status(200).json(event);
   } catch (error) {
-      console.error("Error fetching event:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error fetching event:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-};
-
+}
 
 
 

@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
+// const miniocontroller = require("../controllers/minio.controller");
+const { getImageFromMinio } = require('../controllers/minio.controller');
+const AgencyController = require("../controllers/agency.controller");
 
-const AgencyController = require('../controllers/agency.controller');
-
-router.post('/agencyId', AgencyController.createAgency);
+router.post("/agencyId", AgencyController.createAgency);
 
 router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
 
@@ -14,9 +15,36 @@ router.put("/events/status/:event_id", AgencyController.updateEventStatus);
 
 router.get("/events/:event_id", AgencyController.getEventsById);
 
+
+// router.get("/proxy-image/:year/:filename", proxyImage);
+
+// router.get('/images/*', miniocontroller.getImage);
+
+
+
+
+
+router.get('/:bucket/:year/:filename', getImageFromMinio);
+
+
+// router.get('/proxy-image/:year/:filename', async (req, res) => {
+//   const { year, filename } = req.params;
+
+//   const bucket = 'billion-eyes-images';
+//   const objectName = `${year}/${filename}`;
+
+//   try {
+ 
+//     // Pipe the image directly to the response
+//     const stream = await minioClient.getObject( objectName);
+//     stream.pipe(res);
+
+//   } catch (err) {
+//     console.error('MinIO fetch error:', err);
+//     res.status(500).send('Failed to retrieve image from MinIO');
+//   }
+// });
 module.exports = router;
-
-
 
 //const {getImagesByStatus} = require("../models/camera.model");
 // const ImageController = require('../controllers/images.controller')
@@ -30,7 +58,7 @@ module.exports = router;
 //   try {
 //     const { status } = req.params;
 //     const validStatuses = ["ACTIVE", "ASSIGNED", "RESOLVED"];
-    
+
 //     if (!validStatuses.includes(status.toUpperCase())) {
 
 //       return res.status(400).json({ error: "Invalid status" });

@@ -16,8 +16,20 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+/*********************************************************************************** */
+// Middleware to set security headers
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
 
+  res.setHeader(
+    "Content-Security-Policy",
+    `default-src 'self' cdn.jsdelivr.net maps.googleapis.com cdn.arcgis.com basemaps.arcgis.com; img-src 'self' data: http://192.168.192.177:9000; frame-ancestors 'self'; script-src 'self' 'nonce-${global.nonce}'`
+  );
 
+  next();
+});
+
+//****************************************************************************** */
 app.use((req, res, next) => {
   console.log('Request content length:', req.headers['content-length']);
   next();

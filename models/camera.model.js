@@ -1,3 +1,4 @@
+// const { uri } = require("../config.js");
 const { MongoClient, ObjectId } = require("mongodb");
 const Minio = require("minio");
 // const ExifParser = require("exif-parser");

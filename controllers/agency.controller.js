@@ -396,6 +396,251 @@ const  getEventsById= async (req, res)  =>{
 
 
 
+async function createAgency(req, res) {
+  try {
+    const { agencyName, forType, mobileNumber,otp, password ,confirmPassword} = req.body;
+    console.log("[createAgency] Received body:", req.body);
+
+    // Validate required fields
+    if (
+      !agencyName ||
+      !forType ||
+      !mobileNumber ||
+
+      !password ||
+      !confirmPassword||
+      !otp
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+    // Validate phone number (must be 10 digits)
+    const mobileNumberStr = String(mobileNumber).trim();
+    console.log("[createAgency] Validating Mobile Number:", mobileNumberStr);
+    if (!/^\d{10}$/.test(mobileNumberStr)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number. Must be exactly 10 digits.",
+      });
+    }
+   
+    // Hash password before storing
+    // const hashedPassword = await bcrypt.hash(password, 10);
+    // console.log("[createAgency] Hashed Password Before Insert:", hashedPassword);
+    
+    // Create agency entry
+    const agencyId = await AgencyModel.createAgency(
+      agencyName,
+      forType,
+      mobileNumberStr,
+      otp,
+      password,
+      
+    );
+    
+    // Generate JWT Token
+    const token = jwt.sign({ agencyId }, process.env.JWT_SECRET, { expiresIn: "1d" });
+
+    res.status(201).json({ success: true, agencyId });
+    console.log(agencyId);
+  } catch (error) {
+    console.error("[createAgency] Error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+async function requestOtpAgency(req, res) {
+  try {
+    const { agencyId, mobileNumber } = req.body;
+
+    if (!agencyId || !mobileNumber) {
+      return res.status(400).json({ message: "Agency ID and mobile number are required" });
+    }
+
+    if (!/^\d{10}$/.test(mobileNumber.trim())) {
+      return res.status(400).json({ message: "Invalid mobile number format" });
+    }
+
+    const agency = await AgencyModel.findOne({ agencyId: agencyId.trim() });
+
+    if (!agency || agency.mobileNumber !== mobileNumber.trim()) {
+      return res.status(400).json({ message: "Invalid agency ID or mobile number" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await AgencyModel.updateOTP(mobileNumber.trim(), otp);
+
+    console.log(`[requestOtpAgency] OTP sent: ${otp}`);
+    res.status(200).json({ message: "OTP sent successfully", otp }); // Remove 'otp' in production
+  } catch (error) {
+    console.error("[requestOtpAgency] Fatal error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+async function resetPasswordAgency(req, res) {
+  try {
+    const { agencyId, newPassword } = req.body;
+    console.log("[resetPasswordAgency] Received body:", req.body);
+
+    // Validate required fields
+    if (!agencyId || !newPassword) {
+      console.warn("[resetPasswordAgency] Missing required fields");
+      return res.status(400).json({ success: false, message: "Agency ID and new password are required" });
+    }
+
+    // Find agency
+    const agency = await AgencyModel.findOne({ agencyId: agencyId.trim() });
+    console.log("[resetPasswordAgency] Fetched Agency:", agency);
+    if (!agency) {
+      console.warn("[resetPasswordAgency] Agency not found for ID:", agencyId);
+      return res.status(404).json({ success: false, message: "Agency not found" });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update the agency using our new method (instead of calling agency.save())
+    const success = await AgencyModel.updatePassword(agencyId.trim(), hashedPassword);
+
+    if (success) {
+      console.log("[resetPasswordAgency] Password reset successful for:", agencyId);
+      return res.status(200).json({ success: true, message: "Password reset successful" });
+    } else {
+      console.warn("[resetPasswordAgency] Password update failed");
+      return res.status(500).json({ success: false, message: "Password update failed" });
+    }
+  } catch (error) {
+    console.error("[resetPasswordAgency] Error:", error.stack || error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+async function logoutAgency (req, res) {
+  res.clearCookie("agency_token","refreshToken", {
+    httpOnly: true,
+    sameSite: "Strict",
+    secure: process.env.NODE_ENV === "production",
+  });
+  return res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+async function createAgency(req, res) {
+  try {
+    const { agencyName, forType, mobileNumber,otp, password ,confirmPassword} = req.body;
+    console.log("[createAgency] Received body:", req.body);
+
+    // Validate required fields
+    if (
+      !agencyName ||
+      !forType ||
+      !mobileNumber ||
+
+      !password ||
+      !confirmPassword||
+      !otp
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+    // Validate phone number (must be 10 digits)
+    const mobileNumberStr = String(mobileNumber).trim();
+    console.log("[createAgency] Validating Mobile Number:", mobileNumberStr);
+    if (!/^\d{10}$/.test(mobileNumberStr)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number. Must be exactly 10 digits.",
+      });
+    }
+   
+    // Hash password before storing
+    // const hashedPassword = await bcrypt.hash(password, 10);
+    // console.log("[createAgency] Hashed Password Before Insert:", hashedPassword);
+    
+    // Create agency entry
+    const agencyId = await AgencyModel.createAgency(
+      agencyName,
+      forType,
+      mobileNumberStr,
+      otp,
+      password,
+      
+    );
+    
+    // Generate JWT Token
+    const token = jwt.sign({ agencyId }, process.env.JWT_SECRET, { expiresIn: "1d" });
+
+    res.status(201).json({ success: true, agencyId });
+    console.log(agencyId);
+  } catch (error) {
+    console.error("[createAgency] Error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+//login
+async function loginAgency(req, res) {
+  try {
+    const { agencyId, password } = req.body;
+    console.log("[loginAgency] Received body:", req.body);
+
+    // ✅ Validate input fields
+    if (!agencyId || !password) {
+      console.warn("[loginAgency] Missing required fields");
+      return res.status(400).json({ success: false, message: "Agency ID and password are required" });
+    }
+    // ✅ Find agency by agencyId (trimmed to avoid spaces)
+    const agency = await AgencyModel.findOne({ agencyId: agencyId.trim() });
+    console.log("[loginAgency] Fetched Agency:", agency,null,2);
+    if (!agency) {
+      console.warn("[loginAgency] Agency not found for ID:", agencyId);
+      return res.status(400).json({ success: false, message: "Invalid Agency ID " });
+    }
+    // ✅ Validate password
+    const validPassword = await bcrypt.compare(password, agency.password);
+    console.log("[DEBUG] Entered Password:", password);
+     console.log("[DEBUG] Stored Hashed Password:", agency.password);
+    console.log("[loginAgency] Password Match:", validPassword);
+    if (!validPassword) {
+      console.warn("[loginAgency] Incorrect password for Agency ID:", agencyId);
+      return res.status(400).json({ success: false, message:  "Invalid password" });
+    }
+    console.log("[loginAgency] Password verified successfully!");
+    // ✅ Generate JWT Token
+    const token = jwt.sign({ agencyId: agency._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    console.log("[loginAgency] Generated JWT Token:", token);
+    res.cookie("agency_token", token, {
+      httpOnly: true,            // Prevents client-side JS access
+      secure: true, // Use HTTPS in production
+      sameSite: "Strict",        // CSRF protection
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+    
+    console.log("[loginAgency] Login successful for:", agencyId);
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      // token,
+      agencyId: agency.agencyId,
+    });
+
+  } catch (error) {
+    console.error("[loginAgency] Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+
 
 
 
@@ -410,7 +655,14 @@ module.exports = {
   getAgencyDashboard,
   getEventStatus,
   updateEventStatus,
-  getEventsById
+  getEventsById,
+  loginAgency,
+
+  logoutAgency, 
+  // addGroundStaff,
+  // deleteIncident,
+  resetPasswordAgency,
+  requestOtpAgency,
   
 //   getGroundStaff,
 };

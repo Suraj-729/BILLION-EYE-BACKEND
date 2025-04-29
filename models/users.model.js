@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+// const { uri } = require("../config.js"); ////docker purpose
+
 const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 

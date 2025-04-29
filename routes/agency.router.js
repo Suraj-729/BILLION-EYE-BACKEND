@@ -21,7 +21,10 @@ router.get("/events/:event_id", AgencyController.getEventsById);
 // router.get('/images/*', miniocontroller.getImage);
 
 
-
+router.post("/agencies/login", AgencyController.loginAgency);
+router.post("/agencies/logout", AgencyController.logoutAgency);
+router.post("/agencies/reset-password", AgencyController.resetPasswordAgency);
+router.post("/agencies/requestOtpAgency",AgencyController.requestOtpAgency);
 
 
 router.get('/:bucket/:year/:filename', getImageFromMinio);

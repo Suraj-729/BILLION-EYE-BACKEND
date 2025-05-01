@@ -289,6 +289,8 @@ const getEventStatus = async (req, res) => {
 
 const getAgencyDashboard = async (req, res) => {
   try {
+    console.log("`[DEBUG] Request Params:", req.params); // Log the request parameters
+    
       const { agencyId } = req.params;
 
       if (!agencyId) {

@@ -1,10 +1,10 @@
 const bcrypt = require('bcryptjs');
-// const { uri } = require("../config.js"); ////docker purpose
+const { uri } = require("../config.js"); ////docker purpose
 
 const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 
-const uri = process.env.DB_CONNECT;
+// const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 
 async function getUserCollection() {

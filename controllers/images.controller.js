@@ -3,6 +3,7 @@ const { uploadImageToS3, getFileUrl } = require("../services/minio.service");
 // const piexif = require("piexifjs");
 const Camera = require("../models/camera.model");
 const amqp = require("amqplib");
+const { OUTPUT_QUEUE } = require("../config");
  
 // function getLocalIPAddress() {
 //   const interfaces = os.networkInterfaces();
@@ -18,7 +19,7 @@ const amqp = require("amqplib");
 
 
 
-     const queueName = 'image_queue';
+    //  const queueName = 'image_queue';
     //  const queueName = "image-queue";
 //     const rabbitmqHost = "192.168.192.177";
 //   // const rabbitmqHost = getLocalIPAddress(); // Use local IP address
@@ -56,7 +57,7 @@ const PushToQueue = async (data) => {
         const connection = await connectToRabbitMQ();
         //  const connection = await amqp.connect(`amqp://${rabbitmqHost}:${rabbitmqPort}`);
       const channel = await connection.createChannel();
-      await channel.assertQueue(queueName, { durable: false });
+      await channel.assertQueue(OUTPUT_QUEUE, { durable: false });
 
       
       // ✅ Attach EXIF data to the message payload
@@ -66,7 +67,7 @@ const PushToQueue = async (data) => {
       };
 
       let response = channel.sendToQueue(
-          queueName,
+          OUTPUT_QUEUE,
           Buffer.from(JSON.stringify(messagePayload)),
           { persistent: true }
       );

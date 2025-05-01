@@ -4,5 +4,6 @@ module.exports = {
   MONGO_HOST: process.env.MONGO_HOST || "localhost",
   MONGO_PORT: process.env.MONGO_PORT || 27017,
   dbName: "BillionEyes_V1",
+  OUTPUT_QUEUE: process.env.OUTPUT_QUEUE || 'image_queue',
   uri: `mongodb://${process.env.MONGO_HOST || "localhost"}:${process.env.MONGO_PORT || 27017}/`,
 };

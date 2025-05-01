@@ -1,8 +1,8 @@
-// const { uri } = require("../config.js");
+const { uri } = require("../config.js");
 const { MongoClient } = require("mongodb");
 const bcrypt = require("bcryptjs");
 const { getLocalIpAddress } = require("../utlils/network");
-const uri = process.env.DB_CONNECT;
+// const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 
 async function getAgencyCollection() {

@@ -40,12 +40,12 @@ app.use((req, res, next) => {
 app.listen(port, () => {
   console.log(`HTTPS Server is running on port ${port}`);
 });
-app.use('/user', userRoutes);
+app.use('/backend/user', userRoutes);
 // app.use('/agencies',agencyRoutes);
-app.use('/',agencyRoutes);
+app.use('/backend',agencyRoutes);
 
 // app.use('/images', imageRoutes);
-app.get('/',(req, res) => {
+app.get('/backend',(req, res) => {
   res.send("Hey Server is Running");
   
 })

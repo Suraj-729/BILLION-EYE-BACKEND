@@ -1,9 +1,9 @@
-// const { uri } = require("../config.js");
+const { uri } = require("../config.js");
 const { MongoClient, ObjectId } = require("mongodb");
 const Minio = require("minio");
 // const ExifParser = require("exif-parser");
 
-const uri = process.env.DB_CONNECT;
+// const uri = process.env.DB_CONNECT;
 const client = new MongoClient(uri);
 
 const minioClient = new Minio.Client({

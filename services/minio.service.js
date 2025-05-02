@@ -1,6 +1,8 @@
-// const { Client } = require("minio");
 
-// // MinIO Client Configuration
+// const Minio = require("minio");
+// require("dotenv").config();
+
+// // Initialize MinIO client
 // const minioClient = new Minio.Client({
 //   endPoint: process.env.MINIO_ENDPOINT,
 //   port: parseInt(process.env.MINIO_PORT),
@@ -10,148 +12,106 @@
 // });
 
 // // Function to Upload Image to MinIO
-// const uploadImageToS3 = async (file, bucketName, objectName) => {
+// const uploadImageToS3 = async (fileData, bucketName, objectName) => {
 //   try {
 //     await minioClient.putObject(
 //       bucketName,
 //       objectName,
-//       file.buffer,
-//       file.size,
+//       fileData.buffer,
+//       fileData.size,
 //       {
-//         "Content-Type": file.mimetype,
+//         "Content-Type": fileData.mimetype,
 //       }
 //     );
-//     console.log("✅ Image uploaded successfully:", objectName);
-//     return objectName;
-//   } catch (error) {
-//     console.error("❌ MinIO Upload Error:", error);
-//     throw error;
+//     console.log("✅ File uploaded to MinIO successfully.");
+//     return { status: true, message: "File uploaded successfully." };
+//   } catch (err) {
+//     console.error("❌ MinIO Upload Error:", err);
+//     return { status: false, message: "Failed to upload file!" };
 //   }
 // };
 
-// // Function to Get a Presigned URL (to access the file)
+// // Function to Retrieve Object from MinIO
+// const getObject = async (bucketName, key) => {
+//   try {
+//     const stream = await minioClient.getObject(bucketName, key);
+//     //  No need to handle the stream here.  Return it to the controller.
+//     return stream;
+//   } catch (err) {
+//     console.error("❌ GetObject error:", err);
+//     return null; // Important: Return null for the controller to handle 404
+//   }
+// };
+
+// // Function to Generate Presigned URL
 // const getFileUrl = async (bucketName, objectName) => {
 //   try {
-//     const url = await minioClient.presignedUrl(
-//       "GET",
-//       bucketName,
-//       objectName,
-//       24 * 60 * 60
-//     );
-//     console.log("🟢 Presigned URL:", url);
+//     const url = await minioClient.presignedUrl("GET", bucketName, objectName, 24 * 60 * 60);
 //     return url;
 //   } catch (error) {
-//     console.error("❌ MinIO URL Generation Error:", error);
-//     throw error;
+//     console.error("❌ URL Generation Error:", error);
+//     return null;
 //   }
 // };
-// const getObject = minioClient.getObject;
-// const statObject = minioClient.statObject;
-// // ✅ Properly export the functions
-// module.exports = { uploadImageToS3, getFileUrl, getObject, statObject };
 
-// const AWS = require("aws-sdk");
-// require("aws-sdk/lib/maintenance_mode_message").suppress = true;
+// module.exports = { uploadImageToS3, getObject, getFileUrl };
 
-// // Initialize S3 client
-// const s3 = new AWS.S3({
-//   accessKeyId: process.env.MINIO_ACCESS_KEY,
-//   secretAccessKey: process.env.MINIO_SECRET_KEY,
-//   endpoint: new AWS.Endpoint(process.env.MINIO_ENDPOINT), // e.g., http://localhost:9000
-//   s3ForcePathStyle: true, // Required for MinIO
-//   signatureVersion: 'v4',
-// });
 
-// const uploadImageToS3 = (fileData, bucketName, objectName) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       const params = {
-//         Bucket: bucketName,
-//         Key: objectName,
-//         Body: fileData.buffer,
-//         ContentType: fileData.mimetype,
-//       };
-//       if (fileData.encoding) {
-//         params.ContentEncoding = fileData.encoding;
-//       }
+const AWS = require('aws-sdk');
+require('dotenv').config();
 
-//       await s3.putObject(params).promise();
-//       resolve({ status: true, message: "File uploaded to MinIO successfully." });
-
-//     } catch (err) {
-//       console.error("Upload error:", err);
-//       resolve({ status: false, message: "Failed to upload file!" });
-//     }
-//   });
-// };
-
-// const getObject = (key) => {
-//   return new Promise(async (resolve, reject) => {
-//     const params = {
-//       Bucket: process.env.MINIO_BUCKET_NAME,
-//       Key: key,
-//     };
-
-//     s3.getObject(params, (err, data) => {
-//       if (err) {
-//         console.error("GetObject error:", err);
-//         resolve("File Not Found!");
-//       } else {
-//         resolve(data.Body);
-//       }
-//     });
-//   });
-// };
-
-// module.exports = { uploadImageToS3, getObject };
-const Minio = require("minio");
-require("dotenv").config();
-
-// Initialize MinIO client
-const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT,
-  port: parseInt(process.env.MINIO_PORT),
-  useSSL: process.env.MINIO_USE_SSL === "true",
-  accessKey: process.env.MINIO_ACCESS_KEY,
-  secretKey: process.env.MINIO_SECRET_KEY,
+// Initialize AWS S3 client
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  endpoint: process.env.AWS_S3_ENDPOINT, // e.g., 'https://staas-bbs1.cloud.gov.in/'
+  s3ForcePathStyle: true,
+  signatureVersion: 'v4',
+  region: process.env.AWS_REGION || 'us-east-1', // if required
 });
 
-// Function to Upload Image to MinIO
+// Upload File to S3
 const uploadImageToS3 = async (fileData, bucketName, objectName) => {
   try {
-    await minioClient.putObject(
-      bucketName,
-      objectName,
-      fileData.buffer,
-      fileData.size,
-      {
-        "Content-Type": fileData.mimetype,
-      }
-    );
-    console.log("✅ File uploaded to MinIO successfully.");
+    const params = {
+      Bucket: bucketName,
+      Key: objectName,
+      Body: fileData.buffer,
+      ContentType: fileData.mimetype,
+    };
+
+    await s3.upload(params).promise();
+    console.log("✅ File uploaded to S3 successfully.");
     return { status: true, message: "File uploaded successfully." };
   } catch (err) {
-    console.error("❌ MinIO Upload Error:", err);
+    console.error("❌ AWS S3 Upload Error:", err);
     return { status: false, message: "Failed to upload file!" };
   }
 };
 
-// Function to Retrieve Object from MinIO
+// Get File Object Stream
 const getObject = async (bucketName, key) => {
   try {
-    const stream = await minioClient.getObject(bucketName, key);
-    //  No need to handle the stream here.  Return it to the controller.
-    return stream;
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+    };
+    return s3.getObject(params).createReadStream(); // return stream directly
   } catch (err) {
     console.error("❌ GetObject error:", err);
-    return null; // Important: Return null for the controller to handle 404
+    return null;
   }
 };
 
-// Function to Generate Presigned URL
+// Generate Presigned URL for Download
 const getFileUrl = async (bucketName, objectName) => {
   try {
-    const url = await minioClient.presignedUrl("GET", bucketName, objectName, 24 * 60 * 60);
+    const params = {
+      Bucket: bucketName,
+      Key: objectName,
+      Expires: 86400, // 24 hours
+    };
+    const url = await s3.getSignedUrlPromise('getObject', params);
     return url;
   } catch (error) {
     console.error("❌ URL Generation Error:", error);

@@ -42,51 +42,61 @@ async function getGroundStaffCollection() {
 
 // Agency Model
 const AgencyModel = {
-  async createAgency(agencyName, forType, mobileNumber, otp, password) {
+  async createAgency(agencyName, mobileNumber, password, location = {}) {
     const agencyCollection = await getAgencyCollection();
-    const criticalCollection = await getCriticalCollection();
-    const nonCriticalCollection = await getNonCriticalCollection();
-
+  
     // Validate phone number
     if (!/^\d{10}$/.test(mobileNumber)) {
       throw new Error("Invalid phone number. Must be 10 digits.");
     }
-
+  
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Validate 'forType'
+  
+    // Validate 'forType' (if applicable)
+    const forType = "Non-Critical"; // Default value, can be updated based on requirements
     if (!["Critical", "Non-Critical"].includes(forType)) {
       throw new Error("Invalid 'forType'. Must be 'Critical' or 'Non-Critical'.");
     }
-
+  
     // Generate Custom Agency ID
     const agencyId = `OD-${Math.floor(10 + Math.random() * 90)}-${Math.floor(10 + Math.random() * 90)}`;
-
+  
+    // Validate location (if provided)
+    if (location.latitude && location.longitude) {
+      if (typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+        throw new Error("Invalid location. Latitude and Longitude must be numbers.");
+      }
+    }
+  
     // Create the agency object
     const agency = {
       agencyId,
       agencyName,
       mobileNumber,
-      otp,
       password: hashedPassword,
+      location: {
+        latitude: location.latitude || null,
+        longitude: location.longitude || null,
+      },
       For: forType,
       createdAt: new Date(),
-      otpExpires: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
     };
-
+  
     try {
       // Insert into the main "agencies" collection
       await agencyCollection.insertOne(agency);
       console.log("[createAgency] New agency inserted:", { agencyId, agencyName });
-
+  
       // Store in respective collections
       if (forType === "Critical") {
+        const criticalCollection = await getCriticalCollection();
         await criticalCollection.insertOne({ agencyId });
       } else {
+        const nonCriticalCollection = await getNonCriticalCollection();
         await nonCriticalCollection.insertOne({ agencyId });
       }
-
+  
       return agencyId;
     } catch (error) {
       console.error("[createAgency] MongoDB Insert Error:", error);
@@ -94,24 +104,21 @@ const AgencyModel = {
     }
   },
 
-  async findOne(query) {
-    const agencyCollection = await getAgencyCollection();
-    console.log("[findOne] Searching for:", query);
-    const result = await agencyCollection.findOne(query);
-    console.log("[findOne] Found:", result);
-    return result;
-  },
+  
 
-  async updateOTP(mobileNumber, otp) {
-    const agencyCollection = await getAgencyCollection();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
-    const result = await agencyCollection.updateOne(
-      { mobileNumber },
-      { $set: { otp, otpExpires } }
-    );
-    console.log("[updateOTP] Updated agency OTP:", result.modifiedCount);
-    return result.modifiedCount > 0;
-  },
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   async getAgencyDashboardCheck(agencyId) {
     try {
@@ -352,3 +359,15 @@ const AgencyModel = {
 };
 
 module.exports = AgencyModel;
+
+
+// async updateOTP(mobileNumber, otp) {
+//   const agencyCollection = await getAgencyCollection();
+//   const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+//   const result = await agencyCollection.updateOne(
+//     { mobileNumber },
+//     { $set: { otp, otpExpires } }
+//   );
+//   console.log("[updateOTP] Updated agency OTP:", result.modifiedCount);
+//   return result.modifiedCount > 0;
+// }

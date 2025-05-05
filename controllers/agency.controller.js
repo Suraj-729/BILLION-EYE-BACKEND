@@ -11,18 +11,11 @@ const { io } = require('../app'); // Import Socket.IO from app.js
 // Create A New Agency
 async function createAgency(req, res) {
   try {
-    const { agencyName, lat, lng, forType, phoneNumber, password } = req.body;
+    const { agencyName, lat, lng, phoneNumber, password } = req.body;
     console.log("[createAgency] Received body:", req.body);
 
     // Validate required fields
-    if (
-      !agencyName ||
-      lat == null ||
-      lng == null ||
-      !forType ||
-      !phoneNumber ||
-      !password
-    ) {
+    if (!agencyName || lat == null || lng == null || !phoneNumber || !password) {
       return res
         .status(400)
         .json({ success: false, message: "All fields are required" });
@@ -31,35 +24,31 @@ async function createAgency(req, res) {
     // Validate phone number (must be 10 digits)
     const phoneRegex = /^\d{10}$/;
     if (!phoneRegex.test(phoneNumber)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid phone number. Must be 10 digits.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number. Must be 10 digits.",
+      });
     }
 
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log(hashedPassword);
+    console.log("[createAgency] Hashed Password:", hashedPassword);
 
     // Create agency entry
     const agencyId = await AgencyModel.createAgency(
       agencyName,
-      lat,
-      lng,
-      forType,
       phoneNumber,
-      hashedPassword
+      hashedPassword,
+      { latitude: lat, longitude: lng } // Pass location as an object
     );
+
     res.status(201).json({ success: true, agencyId });
-    console.log(agencyId);
+    console.log("[createAgency] Agency created with ID:", agencyId);
   } catch (error) {
     console.error("[createAgency] Error:", error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 }
-
 
 const getAgencyDashboard = async (req, res) => {
   try {
@@ -109,43 +98,7 @@ const updateEventStatus = async (req, res) => {
       return res.status(500).json({ message: "Server error." });
   }
 };
-// const getEventsById = async (req, res) => {
-//   try {
-//     const { event_id } = req.params;
-//     const event = await AgencyModel.getEventById(event_id);
 
-//     if (!event) {
-//       return res.status(404).json({ error: "Event not found" });
-//     }
-
-//     res.status(200).json(event);
-//   } catch (error) {
-//     console.error("Error fetching event:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
-
-
-
-
-// const getEventsById = async (req, res) => {
-//   try {
-//       const { event_id } = req.params;
-//       console.log("Request Params:", req.params);
-      
-//       const collection = await AgencyModel.getEventsCollection(); // Call function correctly
-//       const event = await collection.findOne({ event_id: event_id });
-
-//       if (!event) {
-//           return res.status(404).json({ error: "Event not found" });
-//       }
-
-//       res.status(200).json(event);
-//   } catch (error) {
-//       console.error("Error fetching event:", error);
-//       res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
 
 const  getEventsById= async (req, res)  =>{
   try {

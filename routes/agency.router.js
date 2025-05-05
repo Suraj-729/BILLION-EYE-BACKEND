@@ -8,7 +8,7 @@ router.post("/agencyId", AgencyController.createAgency);
 
 router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
 
-router.get("/events/status/:event_id", AgencyController.getEventStatus);
+// router.get("/events/status/:event_id", AgencyController.getEventStatus);
 
 // Route to update event status
 router.put("/events/status/:event_id", AgencyController.updateEventStatus);
@@ -30,11 +30,13 @@ router.post("/agencies/requestOtpAgency",AgencyController.requestOtpAgency);
 router.get('/:bucket/:year/:filename', getImageFromMinio);
 
 
+router.get('/incident-images/:event_id', AgencyController.allImage);
+
 // router.get('/proxy-image/:year/:filename', async (req, res) => {
 //   const { year, filename } = req.params;
 
 //   const bucket = 'billion-eyes-images';
-//   const objectName = `${year}/${filename}`;
+//   const objectName = ${year}/${filename};
 
 //   try {
  

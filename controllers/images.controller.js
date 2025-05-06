@@ -47,8 +47,8 @@ const connectToRabbitMQ = async () => {
   throw new Error("❌ Could not connect to any RabbitMQ host.");
 };
 const PushToQueue = async (data) => {
-  console.log("📡 Connecting to RabbitMQ at:", rabbitmqHosts);
-  console.log(data);
+  // console.log("📡 Connecting to RabbitMQ at:", rabbitmqHosts);
+  // console.log(data);
 
   try {
       //  const connection = await amqp.connect(`amqp://rabbitmq`);
@@ -92,7 +92,7 @@ const uploadImage = async (req, res) => {
       return res.status(400).json({ error: "No image data provided" });
     }
 
-    console.log("🟢 Request Body:", req.body);
+    // console.log("🟢 Request Body:", req.body);
 
     // ✅ Ensure location exists and is properly formatted
     if (!location || !Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
@@ -107,7 +107,7 @@ const uploadImage = async (req, res) => {
       return res.status(400).json({ error: "Invalid latitude or longitude" });
     }
 
-    console.log("📍 Processed Location Data:", { type: "Point", coordinates: [longitude, latitude] });
+    // console.log("📍 Processed Location Data:", { type: "Point", coordinates: [longitude, latitude] });
 
     //✅ Push image data to RabbitMQ
     const queuePushed = await PushToQueue({

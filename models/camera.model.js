@@ -24,7 +24,7 @@ async function getImageCollection() {
 
 async function saveImageData(imageData) {
   const collection = await getImageCollection();
-  console.log("[saveImageData] Accessed image collection.", imageData);
+  // console.log("[saveImageData] Accessed image collection.", imageData);
 
   const incidentId = new ObjectId().toString();
 

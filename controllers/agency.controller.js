@@ -434,6 +434,36 @@ async function allImage(req, res) {
   }
 }
 
+// async function getEventReport(req, res) {
+//   try {
+//     const { event_id } = req.params;
+
+//     // Fetch the event report from the model
+//     const eventReport = await AgencyModel.getEventReportId(event_id);
+
+//     if (!eventReport) {
+//       return res.status(404).json({ success: false, message: "Event not found" });
+//     }
+
+//     // Prepare the response with the required fields
+//     const response = {
+//       success: true,
+//       assignment_time: eventReport.assignment_time || null,
+//       event_id: eventReport.event_id,
+//       description: eventReport.description,
+//       ground_staff: eventReport.ground_staff || null,
+//       latitude: eventReport.latitude || null,
+//       longitude: eventReport.longitude || null,
+//       image_url: eventReport.image_url || null,
+//     };
+
+//     res.status(200).json(response);
+//   } catch (error) {
+//     console.error("[getEventReport] Error:", error.message);
+//     res.status(500).json({ success: false, message: "Internal Server Error" });
+//   }
+// }
+
 async function getEventReport(req, res) {
   try {
     const { event_id } = req.params;
@@ -445,17 +475,18 @@ async function getEventReport(req, res) {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    // Extract only the required fields
-    const firstIncident = eventReport.incidents?.[0] || {};
+    // Prepare the response with the required fields
     const response = {
       success: true,
-      assignment_time: firstIncident.timestamp || null,
+      assignment_time: eventReport.assignment_time || null,
+      AgencyName: eventReport.AgencyName,
       event_id: eventReport.event_id,
       description: eventReport.description,
       ground_staff: eventReport.ground_staff || null,
-      latitude: firstIncident.latitude || null,
-      longitude: firstIncident.longitude || null,
-      image_url: firstIncident.image_url || null,
+      latitude: eventReport.latitude || null,
+      longitude: eventReport.longitude || null,
+      image_url: eventReport.image_url || null,
+       // Include assignedAgency
     };
 
     res.status(200).json(response);

@@ -45,67 +45,129 @@ async function getGroundStaffCollection() {
 
 // Agency Model
 const AgencyModel = {
-  async createAgency(agencyName, mobileNumber, password, location = {}) {
-    const agencyCollection = await getAgencyCollection();
+
+  async createAgencyInDB(AgencyName, mobileNumber, password, location = {}) {
+    console.log("[createAgencyInDB] Function called with parameters:", {
+      AgencyName,
+      mobileNumber,
+      location,
+    });
   
-    // Validate phone number
+    // Validate mobile number
     if (!/^\d{10}$/.test(mobileNumber)) {
-      throw new Error("Invalid phone number. Must be 10 digits.");
+      console.error("[createAgencyInDB] Invalid mobile number:", mobileNumber);
+      throw new Error("Invalid mobile number. Must be exactly 10 digits.");
     }
   
-    // Hash password before storing
+    // Hash the password
+    console.log("[createAgencyInDB] Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("[createAgencyInDB] Password hashed successfully.");
   
-    // Validate 'forType' (if applicable)
-    const forType = "Non-Critical"; // Default value, can be updated based on requirements
-    if (!["Critical", "Non-Critical"].includes(forType)) {
-      throw new Error("Invalid 'forType'. Must be 'Critical' or 'Non-Critical'.");
-    }
+    // Generate AgencyId
+    const AgencyId = `agency-${Math.floor(1000 + Math.random() * 9000)}`;
+    console.log("[createAgencyInDB] Generated AgencyId:", AgencyId);
   
-    // Generate Custom Agency ID
-    const agencyId = `OD-${Math.floor(10 + Math.random() * 90)}-${Math.floor(10 + Math.random() * 90)}`;
-  
-    // Validate location (if provided)
-    if (location.latitude && location.longitude) {
-      if (typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+    // Validate location
+    if (location && (location.latitude !== undefined || location.longitude !== undefined)) {
+      console.log("[createAgencyInDB] Validating location:", location);
+      if (
+        typeof location.latitude !== "number" ||
+        typeof location.longitude !== "number"
+      ) {
+        console.error("[createAgencyInDB] Invalid location:", location);
         throw new Error("Invalid location. Latitude and Longitude must be numbers.");
       }
     }
   
-    // Create the agency object
+    // Prepare agency object
     const agency = {
-      agencyId,
-      agencyName,
+      AgencyId,
+      AgencyName,
       mobileNumber,
       password: hashedPassword,
       location: {
         latitude: location.latitude || null,
         longitude: location.longitude || null,
       },
-      For: forType,
       createdAt: new Date(),
     };
+    console.log("[createAgencyInDB] Agency object prepared:", agency);
   
     try {
-      // Insert into the main "agencies" collection
-      await agencyCollection.insertOne(agency);
-      console.log("[createAgency] New agency inserted:", { agencyId, agencyName });
+      // Insert agency into the database
+      console.log("[createAgencyInDB] Connecting to agency collection...");
+      const agencyCollection = await getAgencyCollection();
+      console.log("[createAgencyInDB] Inserting agency into the database...");
+      const insertResult = await agencyCollection.insertOne(agency);
   
-      // Store in respective collections
-      if (forType === "Critical") {
-        const criticalCollection = await getCriticalCollection();
-        await criticalCollection.insertOne({ agencyId });
-      } else {
-        const nonCriticalCollection = await getNonCriticalCollection();
-        await nonCriticalCollection.insertOne({ agencyId });
-      }
+      console.log("[createAgencyInDB] New agency inserted successfully:", {
+        AgencyId,
+        insertedId: insertResult.insertedId,
+      });
   
-      return agencyId;
-    } catch (error) {
-      console.error("[createAgency] MongoDB Insert Error:", error);
-      throw new Error("Database Insert Failed");
+      return AgencyId;
+    } catch (err) {
+      console.error("[createAgencyInDB] Database Insert Error:", err);
+      throw new Error("Failed to insert agency into the database.");
     }
   },
+
+  async agencyLogin(mobileNumber, password) {
+    console.log("[agencyLogin] Function called with parameters:", {
+      mobileNumber,
+    });
+  
+    try {
+      // Validate mobile number
+      if (!/^\d{10}$/.test(mobileNumber)) {
+        console.error("[agencyLogin] Invalid mobile number:", mobileNumber);
+        throw new Error("Invalid mobile number. Must be exactly 10 digits.");
+      }
+  
+      // Connect to the agency collection
+      console.log("[agencyLogin] Connecting to agency collection...");
+      const agencyCollection = await getAgencyCollection();
+  
+      // Find the agency by mobile number
+      console.log("[agencyLogin] Searching for agency with mobile number:", mobileNumber);
+      const agency = await agencyCollection.findOne({ mobileNumber });
+  
+      if (!agency) {
+        console.error("[agencyLogin] No agency found with mobile number:", mobileNumber);
+        throw new Error("Invalid mobile number or password.");
+      }
+  
+      // Compare the provided password with the hashed password
+      console.log("[agencyLogin] Comparing passwords...");
+      const isPasswordValid = await bcrypt.compare(password, agency.password);
+  
+      if (!isPasswordValid) {
+        console.error("[agencyLogin] Invalid password for mobile number:", mobileNumber);
+        throw new Error("Invalid mobile number or password.");
+      }
+  
+      console.log("[agencyLogin] Login successful for AgencyId:", agency.AgencyId);
+  
+      // Return agency details (excluding sensitive information like password)
+      return {
+        success: true,
+        message: "Login successful.",
+        agency: {
+          AgencyId: agency.AgencyId,
+          AgencyName: agency.AgencyName,
+          mobileNumber: agency.mobileNumber,
+          location: agency.location,
+          createdAt: agency.createdAt,
+        },
+      };
+    } catch (err) {
+      console.error("[agencyLogin] Error:", err.message);
+      throw new Error(err.message || "Failed to login.");
+    }
+  },
+
+
 
   
 
@@ -371,126 +433,6 @@ const AgencyModel = {
     }
   },
 
-  // async getEventReportId(event_id, fields = [], includeImageUrl = true, currentAgencyId = null) {
-  //   try {
-  //     const eventCollection = await this.getEventsCollection();
-  
-  //     const projection = {
-  //       event_id: 1,
-  //       assignment_time: 1,
-  //       description: 1,
-  //       ground_staff: 1,
-  //       location: 1,
-  //       assigned_agency: 1,
-  //       bounding_boxes: 1,
-  //       ...fields.reduce((acc, field) => ({ ...acc, [field]: 1 }), {}),
-  //     };
-  
-  //     const pipeline = [
-  //       { $match: { event_id } },
-  //       {
-  //         $addFields: {
-  //           firstIncident: { $arrayElemAt: ["$incidents", 0] },
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           ...projection,
-  //           latitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 1] },
-  //           longitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 0] },
-  //           incidents: {
-  //             $map: {
-  //               input: "$incidents",
-  //               as: "incident",
-  //               in: {
-  //                 latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
-  //                 longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
-  //                 timestamp: "$$incident.timestamp",
-  //                 image_url: "$$incident.image_url",
-  //                 boundingBoxes: "$$incident.bounding_boxes",
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //     ];
-  
-  //     const eventData = await eventCollection.aggregate(pipeline).toArray();
-  //     if (eventData.length === 0) {
-  //       console.warn("No event found for event_id:", event_id);
-  //       return null;
-  //     }
-  
-  //     const event = eventData[0];
-  //     // console.log("Event Data:", event);
-  
-  //     const firstIncident = event.incidents?.[0] || null;
-  //     // console.log("First Incident:", firstIncident);
-  
-  //     let imageUrl = firstIncident?.image_url || event.image_url;
-  //     // console.log("Image URL:", imageUrl);
-  
-  //     if (includeImageUrl && imageUrl) {
-  //       try {
-  //         const urlParts = new URL(imageUrl);
-  //         const pathSegments = urlParts.pathname.split("/").filter(Boolean);
-  
-  //         if (pathSegments.length >= 3) {
-  //           const year = pathSegments[1];
-  //           const filename = pathSegments.slice(2).join("/");
-  
-  //           const params = {
-  //             Bucket: "billion-eyes-images",
-  //             Key: `${year}/${filename}`,
-  //           };
-  
-  //           const data = await s3.getObject(params).promise();
-  //           if (data && data.Body) {
-  //             imageUrl = `data:image/jpeg;base64,${data.Body.toString("base64")}`;
-  //           }
-  //         }
-  //       } catch (error) {
-  //         console.warn("Image fetch failed:", error.message);
-  //         imageUrl = firstIncident?.image_url || event.image_url;
-  //       }
-  //     } else {
-  //       imageUrl = null;
-  //     }
-  
-  //     event.image_url = imageUrl;
-  
-  //     const boundingBoxes = firstIncident?.boundingBoxes || [];
-  //     event.boundingBoxes = boundingBoxes;
-  
-  //     if (boundingBoxes.length > 0 && Array.isArray(boundingBoxes[0])) {
-  //       const [x1, y1, x2, y2] = boundingBoxes[0];
-  //       event.x1 = x1;
-  //       event.y1 = y1;
-  //       event.x2 = x2;
-  //       event.y2 = y2;
-  //     } else {
-  //       event.x1 = event.y1 = event.x2 = event.y2 = null;
-  //     }
-  
-  //     if (currentAgencyId) {
-  //       event.AgencyId = currentAgencyId;
-  //     }
-  
-  //     return {
-  //       success: true,
-  //       assignment_time: firstIncident?.timestamp || null,
-  //       event_id: event.event_id,
-  //       description: event.description,
-  //       ground_staff: event.ground_staff || null,
-  //       latitude: firstIncident?.latitude || null,
-  //       longitude: firstIncident?.longitude || null,
-  //       image_url: event.image_url,
-  //     };
-  //   } catch (err) {
-  //     console.error("[getEventReportId] Database Error:", err);
-  //     throw new Error("Database Error");
-  //   }
-  // }
   async getEventReportId(event_id, fields = [], includeImageUrl = true, currentAgencyId = null) {
     try {
         const eventCollection = await this.getEventsCollection();

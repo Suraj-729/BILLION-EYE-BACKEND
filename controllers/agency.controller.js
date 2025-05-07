@@ -125,6 +125,7 @@ const  getEventsById= async (req, res)  =>{
 
 
 
+
 async function createAgency(req, res) {
   try {
     const { agencyName, forType, mobileNumber,otp, password ,confirmPassword} = req.body;
@@ -433,7 +434,36 @@ async function allImage(req, res) {
   }
 }
 
+async function getEventReport(req, res) {
+  try {
+    const { event_id } = req.params;
 
+    // Fetch the event report from the model
+    const eventReport = await AgencyModel.getEventReportId(event_id);
+
+    if (!eventReport) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    // Extract only the required fields
+    const firstIncident = eventReport.incidents?.[0] || {};
+    const response = {
+      success: true,
+      assignment_time: firstIncident.timestamp || null,
+      event_id: eventReport.event_id,
+      description: eventReport.description,
+      ground_staff: eventReport.ground_staff || null,
+      latitude: firstIncident.latitude || null,
+      longitude: firstIncident.longitude || null,
+      image_url: firstIncident.image_url || null,
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("[getEventReport] Error:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+}
 
 
 
@@ -448,6 +478,7 @@ module.exports = {
   getEventsById,
   loginAgency,
   allImage,
+  getEventReport,
 
   logoutAgency, 
   // addGroundStaff,

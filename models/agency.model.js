@@ -305,13 +305,15 @@ const AgencyModel = {
       const eventCollection = await this.getEventsCollection();
       return await eventCollection.findOne(
         { event_id: event_id },
-        { projection: { status: 1, _id: 0, incidents: 1 } }
+        { projection: { status: 1, _id: 0, incidents: 1 , description: 1 , timestamp:1 ,image_url : 1 , location : 1} }
       );
     } catch (error) {
       console.error("[getEventById] Database Error:", error);
       throw new Error("Database Error");
     }
   },
+
+
 
   async getEventsCollection() {
     if (!client.topology || !client.topology.isConnected()) {
@@ -368,6 +370,112 @@ const AgencyModel = {
       throw new Error("Error processing incident images");
     }
   },
+
+  async getEventReportId(event_id, fields = [], includeImageUrl = true, currentAgencyId = null) {
+    try {
+      const eventCollection = await this.getEventsCollection();
+  
+      const projection = {
+        event_id: 1,
+        assignment_time: 1,
+        description: 1,
+        ground_staff: 1,
+        location: 1,
+        assigned_agency: 1,
+        bounding_boxes: 1,
+        ...fields.reduce((acc, field) => ({ ...acc, [field]: 1 }), {}),
+      };
+  
+      const pipeline = [
+        { $match: { event_id } },
+        {
+          $addFields: {
+            firstIncident: { $arrayElemAt: ["$incidents", 0] },
+          },
+        },
+        {
+          $project: {
+            ...projection,
+            latitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 1] },
+            longitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 0] },
+            incidents: {
+              $map: {
+                input: "$incidents",
+                as: "incident",
+                in: {
+                  latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
+                  longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
+                  timestamp: "$$incident.timestamp",
+                  image_url: "$$incident.image_url",
+                  boundingBoxes: "$$incident.bounding_boxes",
+                },
+              },
+            },
+          },
+        },
+      ];
+  
+      const eventData = await eventCollection.aggregate(pipeline).toArray();
+      if (eventData.length === 0) return null;
+  
+      const event = eventData[0];
+  
+      const firstIncident = event.incidents?.[0] || null;
+      let imageUrl = firstIncident?.image_url || event.image_url;
+  
+      if (includeImageUrl && imageUrl) {
+        try {
+          const urlParts = new URL(imageUrl);
+          const pathSegments = urlParts.pathname.split("/").filter(Boolean);
+  
+          if (pathSegments.length >= 3) {
+            const year = pathSegments[1];
+            const filename = pathSegments.slice(2).join("/");
+  
+            const params = {
+              Bucket: "billion-eyes-images",
+              Key: `${year}/${filename}`,
+            };
+  
+            const data = await s3.getObject(params).promise();
+            if (data && data.Body) {
+              imageUrl = `data:image/jpeg;base64,${data.Body.toString("base64")}`;
+            }
+          }
+        } catch (error) {
+          console.warn("Image fetch failed:", error.message);
+        }
+      } else {
+        imageUrl = null;
+      }
+  
+      event.image_url = imageUrl;
+  
+      const boundingBoxes = firstIncident?.boundingBoxes || [];
+      event.boundingBoxes = boundingBoxes;
+  
+      if (boundingBoxes.length > 0 && Array.isArray(boundingBoxes[0])) {
+        const [x1, y1, x2, y2] = boundingBoxes[0];
+        event.x1 = x1;
+        event.y1 = y1;
+        event.x2 = x2;
+        event.y2 = y2;
+      } else {
+        event.x1 = event.y1 = event.x2 = event.y2 = null;
+      }
+  
+      // ✅ Inject AgencyId
+      if (currentAgencyId) {
+        event.AgencyId = currentAgencyId;
+      }
+  
+      return event;
+    } catch (err) {
+      console.error("[getEventReportId] Database Error:", err);
+      throw new Error("Database Error");
+    }
+  }
+,
 };
 
 module.exports = AgencyModel;

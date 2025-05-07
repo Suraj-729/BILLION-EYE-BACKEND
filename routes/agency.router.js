@@ -8,7 +8,7 @@ router.post("/agencyId", AgencyController.createAgency);
 
 router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
 
-
+router.get("/event-report/:event_id", AgencyController.getEventReport);
 
 // Route to update event status
 router.put("/events/status/:event_id", AgencyController.updateEventStatus);

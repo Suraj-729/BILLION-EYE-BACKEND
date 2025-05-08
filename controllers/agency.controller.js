@@ -1,6 +1,10 @@
 const AgencyModel  = require("../models/agency.model");
 console.log(AgencyModel);
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key"; // Use a secure secret key
+const JWT_EXPIRATION = "1h"; // Token expiration time (e.g., 1 hour)
 
 // Create A New Agency
 async function createAgency(req, res) {
@@ -68,6 +72,9 @@ async function createAgency(req, res) {
 }
 
 
+
+
+// Login Controller
 async function loginAgency(req, res) {
   try {
     console.log("[loginAgency] Function called");
@@ -89,8 +96,22 @@ async function loginAgency(req, res) {
 
     console.log("[loginAgency] Login successful for AgencyId:", result.agency.AgencyId);
 
-    // Send success response
-    return res.status(200).json(result);
+    // Generate JWT token
+    const token = jwt.sign(
+      { AgencyId: result.agency.AgencyId, mobileNumber: result.agency.mobileNumber },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRATION }
+    );
+
+    console.log("[loginAgency] Token generated successfully.");
+
+    // Send success response with token
+    return res.status(200).json({
+      success: true,
+      message: "Login successful.",
+      token, // Include the token in the response
+      agency: result.agency,
+    });
   } catch (error) {
     console.error("[loginAgency] Error:", error.message);
     return res.status(401).json({
@@ -100,7 +121,102 @@ async function loginAgency(req, res) {
   }
 }
 
+// Logout Controller
+async function logoutAgency(req, res) {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Extract token from Authorization header
 
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is required for logout.",
+      });
+    }
+
+    // Optionally, invalidate the token (e.g., add it to a blacklist)
+    console.log("[logoutAgency] Invalidating token:", token);
+
+    // Clear token from client-side (if using cookies)
+    res.clearCookie("agency_token", {
+      httpOnly: true,
+      sameSite: "Strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    console.error("[logoutAgency] Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Logout failed.",
+    });
+  }
+}
+
+
+
+async function addNewGroundStaff(req, res) {
+  try {
+    console.log("[addNewGroundStaff] Function called");
+    console.log("[addNewGroundStaff] Request body received:", req.body);
+
+    const { name, number, address, agencyId } = req.body;
+
+    // Validate required fields
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      console.warn("[addNewGroundStaff] Invalid name:", name);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid name. Name must be a non-empty string.",
+      });
+    }
+
+    if (!number || !/^\d{10}$/.test(number)) {
+      console.warn("[addNewGroundStaff] Invalid number:", number);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid number. Must be exactly 10 digits.",
+      });
+    }
+
+    if (!address || typeof address !== "string" || address.trim() === "") {
+      console.warn("[addNewGroundStaff] Invalid address:", address);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid address. Address must be a non-empty string.",
+      });
+    }
+
+    if (!agencyId || typeof agencyId !== "string" || agencyId.trim() === "") {
+      console.warn("[addNewGroundStaff] Invalid agencyId:", agencyId);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid agencyId. AgencyId must be a non-empty string.",
+      });
+    }
+
+    // Call the model function to add ground staff
+    const result = await AgencyModel.addGroundStaff(name, number, address, agencyId);
+
+    console.log("[addNewGroundStaff] Ground staff added successfully:", result);
+
+    // Send success response
+    return res.status(201).json({
+      success: true,
+      message: "Ground staff added successfully.",
+      groundStaffId: result.groundStaffId,
+    });
+  } catch (error) {
+    console.error("[addNewGroundStaff] Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error. Please try again later.",
+    });
+  }
+}
 
 
 const getAgencyDashboard = async (req, res) => {
@@ -313,14 +429,15 @@ async function getEventReport(req, res) {
     const response = {
       success: true,
       assignment_time: eventReport.assignment_time || null,
-      AgencyName: eventReport.AgencyName,
+      AgencyName: eventReport.AgencyName || "Kiims", // Default value if not provided
+      AgencyId: eventReport.AgencyId || "agency-125", // Default value if not provided
       event_id: eventReport.event_id,
       description: eventReport.description,
       ground_staff: eventReport.ground_staff || null,
       latitude: eventReport.latitude || null,
       longitude: eventReport.longitude || null,
       image_url: eventReport.image_url || null,
-       // Include assignedAgency
+      assignedAgency: eventReport.assignedAgency || null, // Include assignedAgency
     };
 
     res.status(200).json(response);
@@ -330,9 +447,55 @@ async function getEventReport(req, res) {
   }
 }
 
+async function getGroundStaffByAgency(req, res) {
+  try {
+    const { agencyId } = req.params;
 
+    // Log the incoming request parameters
+    console.log("[getGroundStaffByAgency] Request params:", req.params);
 
+    // Validate agencyId
+    if (!agencyId || typeof agencyId !== "string" || agencyId.trim() === "") {
+      console.warn("[getGroundStaffByAgency] Invalid agencyId:", agencyId);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid agencyId. AgencyId must be a non-empty string.",
+      });
+    }
 
+    console.log("[getGroundStaffByAgency] Fetching ground staff for agencyId:", agencyId);
+
+    // Call the model function to fetch ground staff
+    const groundStaff = await AgencyModel.getGroundStaffByAgencyId(agencyId);
+
+    // Check if ground staff data is empty or not found
+    if (!groundStaff || groundStaff.length === 0) {
+      console.warn("[getGroundStaffByAgency] No ground staff found for agencyId:", agencyId);
+      return res.status(404).json({
+        success: false,
+        message: "No ground staff found for the given agency ID.",
+      });
+    }
+
+    // Log the fetched ground staff data
+    console.log("[getGroundStaffByAgency] Ground staff fetched successfully:", groundStaff);
+
+    // Send success response
+    return res.status(200).json({
+      success: true,
+      data: groundStaff,
+    });
+  } catch (error) {
+    // Log the error details
+    console.error("[getGroundStaffByAgency] Error occurred:", error);
+
+    // Send internal server error response
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch ground staff. Please try again later.",
+    });
+  }
+}
 
 module.exports = {
   createAgency,
@@ -344,12 +507,13 @@ module.exports = {
   loginAgency,
   allImage,
   getEventReport,
-
+  getGroundStaffByAgency,
   logoutAgency, 
   // addGroundStaff,
   // deleteIncident,
   resetPasswordAgency,
   requestOtpAgency,
+  addNewGroundStaff
   
 //   getGroundStaff,
 };

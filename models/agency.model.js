@@ -3,6 +3,9 @@ const { MongoClient } = require("mongodb");
 const bcrypt = require("bcryptjs");
 const { getLocalIpAddress } = require("../utlils/network");
 const AWS = require("aws-sdk");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key"; // Use a secure secret key
+const JWT_EXPIRATION = "1h"; // Token expiration time (e.g., 1 hour)
 
 // MongoDB client setup
 const client = new MongoClient(uri);
@@ -113,46 +116,57 @@ const AgencyModel = {
     }
   },
 
+
   async agencyLogin(mobileNumber, password) {
     console.log("[agencyLogin] Function called with parameters:", {
       mobileNumber,
     });
-  
+
     try {
       // Validate mobile number
       if (!/^\d{10}$/.test(mobileNumber)) {
         console.error("[agencyLogin] Invalid mobile number:", mobileNumber);
         throw new Error("Invalid mobile number. Must be exactly 10 digits.");
       }
-  
+
       // Connect to the agency collection
       console.log("[agencyLogin] Connecting to agency collection...");
       const agencyCollection = await getAgencyCollection();
-  
+
       // Find the agency by mobile number
       console.log("[agencyLogin] Searching for agency with mobile number:", mobileNumber);
       const agency = await agencyCollection.findOne({ mobileNumber });
-  
+
       if (!agency) {
         console.error("[agencyLogin] No agency found with mobile number:", mobileNumber);
         throw new Error("Invalid mobile number or password.");
       }
-  
+
       // Compare the provided password with the hashed password
       console.log("[agencyLogin] Comparing passwords...");
       const isPasswordValid = await bcrypt.compare(password, agency.password);
-  
+
       if (!isPasswordValid) {
         console.error("[agencyLogin] Invalid password for mobile number:", mobileNumber);
         throw new Error("Invalid mobile number or password.");
       }
-  
+
       console.log("[agencyLogin] Login successful for AgencyId:", agency.AgencyId);
-  
-      // Return agency details (excluding sensitive information like password)
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { AgencyId: agency.AgencyId, mobileNumber: agency.mobileNumber },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRATION }
+      );
+
+      console.log("[agencyLogin] Token generated successfully.");
+
+      // Return agency details and token
       return {
         success: true,
         message: "Login successful.",
+        token, // Include the token in the response
         agency: {
           AgencyId: agency.AgencyId,
           AgencyName: agency.AgencyName,
@@ -167,12 +181,106 @@ const AgencyModel = {
     }
   },
 
+  async logout(token) {
+    try {
+      // Invalidate the token (optional: store invalidated tokens in a blacklist)
+      console.log("[logout] Invalidating token:", token);
 
+      // If using a blacklist, add the token to it
+      // Example: await addToBlacklist(token);
 
+      return {
+        success: true,
+        message: "Logout successful. Token invalidated.",
+      };
+    } catch (err) {
+      console.error("[logout] Error:", err.message);
+      throw new Error(err.message || "Failed to logout.");
+    }
+  },
+
+  async addGroundStaff(name, number, address, agencyId) {
+    console.log("[addGroundStaff] Function called with parameters:", {
+      name,
+      number,
+      address,
+      agencyId, // Include agencyId in the log
+    });
   
+    // Validate input
+    if (!name || typeof name !== "string") {
+      console.error("[addGroundStaff] Invalid name:", name);
+      throw new Error("Invalid name. Name must be a non-empty string.");
+    }
+  
+    if (!/^\d{10}$/.test(number)) {
+      console.error("[addGroundStaff] Invalid number:", number);
+      throw new Error("Invalid number. Must be exactly 10 digits.");
+    }
+  
+    if (!address || typeof address !== "string") {
+      console.error("[addGroundStaff] Invalid address:", address);
+      throw new Error("Invalid address. Address must be a non-empty string.");
+    }
+  
+    if (!agencyId || typeof agencyId !== "string") {
+      console.error("[addGroundStaff] Invalid agencyId:", agencyId);
+      throw new Error("Invalid agencyId. AgencyId must be a non-empty string.");
+    }
+  
+    const groundStaff = {
+      name,
+      number,
+      address,
+      agencyId, // Include agencyId in the groundStaff object
+      createdAt: new Date(),
+    };
+  
+    try {
+      console.log("[addGroundStaff] Connecting to ground staff collection...");
+      const groundStaffCollection = await getGroundStaffCollection();
+  
+      console.log("[addGroundStaff] Inserting ground staff into the database...");
+      const insertResult = await groundStaffCollection.insertOne(groundStaff);
+  
+      console.log("[addGroundStaff] Ground staff added successfully:", {
+        insertedId: insertResult.insertedId,
+      });
+  
+      return {
+        success: true,
+        message: "Ground staff added successfully.",
+        groundStaffId: insertResult.insertedId,
+      };
+    } catch (err) {
+      console.error("[addGroundStaff] Database Insert Error:", err);
+      throw new Error("Failed to add ground staff to the database.");
+    }
+  },
 
-
-
+  async getGroundStaffByAgencyId(agencyId) {
+    try {
+      console.log("[getGroundStaffByAgencyId] Fetching ground staff for agencyId:", agencyId);
+  
+      // Validate agencyId
+      if (!agencyId || typeof agencyId !== "string" || agencyId.trim() === "") {
+        throw new Error("Invalid agencyId. AgencyId must be a non-empty string.");
+      }
+  
+      // Connect to the ground_staff collection
+      const groundStaffCollection = await getGroundStaffCollection();
+  
+      // Query the collection for ground staff with the given agencyId
+      const groundStaff = await groundStaffCollection.find({ agencyId }).toArray();
+  
+      console.log("[getGroundStaffByAgencyId] Found ground staff:", groundStaff);
+  
+      return groundStaff;
+    } catch (error) {
+      console.error("[getGroundStaffByAgencyId] Error:", error.message);
+      throw new Error("Failed to fetch ground staff by agency ID.");
+    }
+  },
 
 
 
@@ -557,6 +665,8 @@ const AgencyModel = {
             longitude: firstIncident?.longitude || null,
             image_url: event.image_url,
             assignedAgency: event.assignedAgency || null,
+            AgencyName: event.AgencyName || null,
+            AgencyId: event.AgencyId || null,
         };
     } catch (err) {
         console.error("[getEventReportId] Database Error:", err);

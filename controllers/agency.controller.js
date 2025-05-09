@@ -248,23 +248,24 @@ const getAgencyDashboard = async (req, res) => {
 // Controller to update event status
 const updateEventStatus = async (req, res) => {
   try {
-      const { event_id } = req.params; // Get event_id from URL
-      const { status } = req.body; // Get new status from request body
+    const { event_id } = req.params; // Get event_id from URL
+    const { status, groundStaffName } = req.body; // Get new status and ground staff name from request body
 
-      if (!status) {
-          return res.status(400).json({ message: "Status is required." });
-      }
+    if (!status) {
+      return res.status(400).json({ message: "Status is required." });
+    }
 
-      const result = await AgencyModel.updateEventStatus(event_id, status);
+    // Call the model function with the groundStaffName if provided
+    const result = await AgencyModel.updateEventStatus(event_id, status, groundStaffName);
 
-      if (result.modifiedCount === 0) {
-          return res.status(404).json({ message: "Event not found or status unchanged." });
-      }
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({ message: "Event not found or status unchanged." });
+    }
 
-      return res.status(200).json({ message: "Event status updated successfully." });
+    return res.status(200).json({ message: "Event status updated successfully." });
   } catch (error) {
-      console.error("[updateEventStatus] Error:", error);
-      return res.status(500).json({ message: "Server error." });
+    console.error("[updateEventStatus] Error:", error);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 

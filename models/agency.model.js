@@ -456,13 +456,21 @@ const AgencyModel = {
     }
   },
 
-  async updateEventStatus(event_id, newStatus) {
+  async updateEventStatus(event_id, newStatus, groundStaffName = null) {
     try {
       const eventCollection = await this.getEventsCollection();
+  
+      // Prepare the update object
+      const updateFields = { status: newStatus };
+      if (newStatus === "Assigned" && groundStaffName) {
+        updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
+      }
+  
       const result = await eventCollection.updateOne(
         { event_id: event_id },
-        { $set: { status: newStatus } }
+        { $set: updateFields }
       );
+  
       return result;
     } catch (error) {
       console.error("[updateEventStatus] Database Error:", error);

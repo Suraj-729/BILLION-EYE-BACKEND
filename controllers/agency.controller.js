@@ -246,18 +246,20 @@ const getAgencyDashboard = async (req, res) => {
 
 
 // Controller to update event status
-const updateEventStatus = async (req, res) => {
+const updateEvenstStatus = async (req, res) => {
   try {
     const { event_id } = req.params; // Get event_id from URL
     const { status, groundStaffName } = req.body; // Get new status and ground staff name from request body
-
+    console.log(req.body);
+    
     if (!status) {
       return res.status(400).json({ message: "Status is required." });
     }
 
     // Call the model function with the groundStaffName if provided
     const result = await AgencyModel.updateEventStatus(event_id, status, groundStaffName);
-
+    console.log(result); 
+    
     if (result.modifiedCount === 0) {
       return res.status(404).json({ message: "Event not found or status unchanged." });
     }
@@ -268,7 +270,6 @@ const updateEventStatus = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
-
 
 const  getEventsById= async (req, res)  =>{
   try {
@@ -503,7 +504,7 @@ module.exports = {
   
   getAgencyDashboard,
   // getEventStatus,
-  updateEventStatus,
+  updateEvenstStatus,
   getEventsById,
   loginAgency,
   allImage,

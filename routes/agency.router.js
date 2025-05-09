@@ -11,7 +11,7 @@ router.get("/agency-dashboard/:agencyId", AgencyController.getAgencyDashboard);
 router.get("/event-report/:event_id", AgencyController.getEventReport);
 
 // Route to update event status
-router.put("/events/status/:event_id", AgencyController.updateEventStatus);
+router.put("/events/status/:event_id", AgencyController.updateEvenstStatus);
 
 router.get("/events/:event_id", AgencyController.getEventsById);
 

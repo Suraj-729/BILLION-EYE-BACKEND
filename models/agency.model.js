@@ -552,7 +552,6 @@ const AgencyModel = {
   async getEventReportId(event_id, fields = [], includeImageUrl = true, currentAgencyId = null) {
     try {
         const eventCollection = await this.getEventsCollection();
-        const agencyCollection = await getAgencyCollection();
 
         const projection = {
             event_id: 1,
@@ -566,44 +565,47 @@ const AgencyModel = {
         };
 
         const pipeline = [
-            { $match: { event_id } },
-            {
-                $addFields: {
-                    firstIncident: { $arrayElemAt: ["$incidents", 0] },
-                },
-            },
-            {
-                $lookup: {
-                    from: "agencies", // Name of the agencies collection
-                    localField: "assigned_agency",
-                    foreignField: "agencyId",
-                    as: "assignedAgencyDetails",
-                },
-            },
-            {
-                $project: {
-                    ...projection,
-                    latitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 1] },
-                    longitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 0] },
-                    incidents: {
-                        $map: {
-                            input: "$incidents",
-                            as: "incident",
-                            in: {
-                                latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
-                                longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
-                                timestamp: "$$incident.timestamp",
-                                image_url: "$$incident.image_url",
-                                boundingBoxes: "$$incident.bounding_boxes",
-                            },
-                        },
-                    },
-                    assignedAgency: {
-                        $arrayElemAt: ["$assignedAgencyDetails.agencyName", 0],
+    { $match: { event_id } },
+    {
+        $addFields: {
+            firstIncident: { $arrayElemAt: ["$incidents", 0] },
+        },
+    },
+    {
+        $lookup: {
+            from: "agencies",
+            localField: "assigned_agency.agencies",
+            foreignField: "AgencyId",
+            as: "assignedAgencyDetails",
+        },
+    },
+    {
+        $project: {
+            ...projection,
+            latitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 1] },
+            longitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 0] },
+            incidents: {
+                $map: {
+                    input: "$incidents",
+                    as: "incident",
+                    in: {
+                        latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
+                        longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
+                        timestamp: "$$incident.timestamp",
+                        image_url: "$$incident.image_url",
+                        boundingBoxes: "$$incident.bounding_boxes",
                     },
                 },
             },
-        ];
+            assignedAgency: {
+                $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyName", 0] }, null],
+            },
+            AgencyId: {
+                $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyId", 0] }, null],
+            },
+        },
+    },
+];
 
         const eventData = await eventCollection.aggregate(pipeline).toArray();
         if (eventData.length === 0) {
@@ -612,6 +614,11 @@ const AgencyModel = {
         }
 
         const event = eventData[0];
+
+        // Validate currentAgencyId
+        if (currentAgencyId && !event.assigned_agency.agencies.includes(currentAgencyId)) {
+            throw new Error("Agency mismatch: The current agency is not assigned to this event.");
+        }
 
         const firstIncident = event.incidents?.[0] || null;
 
@@ -673,7 +680,7 @@ const AgencyModel = {
             longitude: firstIncident?.longitude || null,
             image_url: event.image_url,
             assignedAgency: event.assignedAgency || null,
-            AgencyName: event.AgencyName || null,
+            
             AgencyId: event.AgencyId || null,
         };
     } catch (err) {

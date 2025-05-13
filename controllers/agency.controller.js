@@ -431,8 +431,8 @@ async function getEventReport(req, res) {
     const response = {
       success: true,
       assignment_time: eventReport.assignment_time || null,
-      AgencyName: eventReport.AgencyName || "Kiims", // Default value if not provided
-      AgencyId: eventReport.AgencyId || "agency-125", // Default value if not provided
+      AgencyName: eventReport.AgencyName , // Default value if not provided
+      AgencyId: eventReport.AgencyId, // Default value if not provided
       event_id: eventReport.event_id,
       description: eventReport.description,
       ground_staff: eventReport.ground_staff || null,

@@ -672,7 +672,7 @@ const AgencyModel = {
 
         return {
             success: true,
-            assignment_time:  event.assignment_time ? new Date(event.assignment_time).toISOString() : firstIncident?.timestamp || null,
+            assignment_time:  new Date(event.assignment_time || firstIncident?.timestamp || null),
             event_id: event.event_id,
             description: event.description,
             ground_staff: event.ground_staff || null,

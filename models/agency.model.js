@@ -6,7 +6,7 @@ const AWS = require("aws-sdk");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key"; // Use a secure secret key
 const JWT_EXPIRATION = "1h"; // Token expiration time (e.g., 1 hour)
-
+const sharp = require('sharp');
 // MongoDB client setup
 const client = new MongoClient(uri);
 
@@ -20,6 +20,9 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION, // Add this line
   s3ForcePathStyle: true,
   signatureVersion: "v4",
+  httpOptions:{
+    timeout:200
+  }
 });
 
 // Helper functions to get MongoDB collections
@@ -261,7 +264,7 @@ const AgencyModel = {
   async getGroundStaffByAgencyId(agencyId) {
     try {
       console.log("[getGroundStaffByAgencyId] Fetching ground staff for agencyId:", agencyId);
-  
+        
       // Validate agencyId
       if (!agencyId || typeof agencyId !== "string" || agencyId.trim() === "") {
         throw new Error("Invalid agencyId. AgencyId must be a non-empty string.");
@@ -281,16 +284,6 @@ const AgencyModel = {
       throw new Error("Failed to fetch ground staff by agency ID.");
     }
   },
-
-
-
-
-
-
-
-
-
-
 
 
   async getAgencyDashboardCheck(agencyId) {
@@ -456,27 +449,63 @@ const AgencyModel = {
     }
   },
 
-  async updateEventStatus(event_id, newStatus, groundStaffName = null) {
-    try {
-      const eventCollection = await this.getEventsCollection();
+
+
+// Assuming 's3' is already initialized (e.g., const AWS = require('aws-sdk'); const s3 = new AWS.S3();)
+// And 'client' for MongoDB is also initialized.
+
+
+
+
+
+
+
+
+
+  // async updateEventStatus(event_id, newStatus, groundStaffName = null) {
+  //   try {
+  //     const eventCollection = await this.getEventsCollection();
   
-      // Prepare the update object
-      const updateFields = { status: newStatus };
-      if (newStatus === "Assigned" && groundStaffName) {
-        updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
-      }
+  //     // Prepare the update object
+  //     const updateFields = { status: newStatus };
+  //     if (newStatus === "Assigned" && groundStaffName) {
+  //       updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
+  //     }
   
-      const result = await eventCollection.updateOne(
-        { event_id: event_id },
-        { $set: updateFields }
-      );
+  //     const result = await eventCollection.updateOne(
+  //       { event_id: event_id },
+  //       { $set: updateFields }
+  //     );
   
-      return result;
-    } catch (error) {
-      console.error("[updateEventStatus] Database Error:", error);
-      throw new Error("Database Error");
+  //     return result;
+  //   } catch (error) {
+  //     console.error("[updateEventStatus] Database Error:", error);
+  //     throw new Error("Database Error");
+  //   }
+  // },
+
+  async updateEventStatus(event_id, newStatus, groundStaffName = null, assignmentTime = null) {
+  try {
+    const eventCollection = await this.getEventsCollection();
+
+    // Prepare the update object
+    const updateFields = { status: newStatus };
+    if (newStatus === "Assigned" && groundStaffName) {
+      updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
+      updateFields.assignment_time = assignmentTime || new Date(); // Add assignment_time
     }
-  },
+
+    const result = await eventCollection.updateOne(
+      { event_id: event_id },
+      { $set: updateFields }
+    );
+
+    return result;
+  } catch (error) {
+    console.error("[updateEventStatus] Database Error:", error);
+    throw new Error("Database Error");
+  }
+},
 
   async getEventById(event_id) {
     try {
@@ -672,7 +701,7 @@ const AgencyModel = {
 
         return {
             success: true,
-            assignment_time: firstIncident?.timestamp || null,
+            assignment_time: event.assignment_time || firstIncident?.timestamp || null,
             event_id: event.event_id,
             description: event.description,
             ground_staff: event.ground_staff || null,

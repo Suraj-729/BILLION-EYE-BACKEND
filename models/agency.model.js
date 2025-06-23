@@ -55,22 +55,22 @@ const AgencyModel = {
       mobileNumber,
       location,
     });
-  
+
     // Validate mobile number
     if (!/^\d{10}$/.test(mobileNumber)) {
       console.error("[createAgencyInDB] Invalid mobile number:", mobileNumber);
       throw new Error("Invalid mobile number. Must be exactly 10 digits.");
     }
-  
+
     // Hash the password
     console.log("[createAgencyInDB] Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
     console.log("[createAgencyInDB] Password hashed successfully.");
-  
+
     // Generate AgencyId
     const AgencyId = `agency-${Math.floor(1000 + Math.random() * 9000)}`;
     console.log("[createAgencyInDB] Generated AgencyId:", AgencyId);
-  
+
     // Validate location
     if (location && (location.latitude !== undefined || location.longitude !== undefined)) {
       console.log("[createAgencyInDB] Validating location:", location);
@@ -82,7 +82,7 @@ const AgencyModel = {
         throw new Error("Invalid location. Latitude and Longitude must be numbers.");
       }
     }
-  
+
     // Prepare agency object
     const agency = {
       AgencyId,
@@ -96,19 +96,19 @@ const AgencyModel = {
       createdAt: new Date(),
     };
     console.log("[createAgencyInDB] Agency object prepared:", agency);
-  
+
     try {
       // Insert agency into the database
       console.log("[createAgencyInDB] Connecting to agency collection...");
       const agencyCollection = await getAgencyCollection();
       console.log("[createAgencyInDB] Inserting agency into the database...");
       const insertResult = await agencyCollection.insertOne(agency);
-  
+
       console.log("[createAgencyInDB] New agency inserted successfully:", {
         AgencyId,
         insertedId: insertResult.insertedId,
       });
-  
+
       return AgencyId;
     } catch (err) {
       console.error("[createAgencyInDB] Database Insert Error:", err);
@@ -206,28 +206,28 @@ const AgencyModel = {
       address,
       agencyId, // Include agencyId in the log
     });
-  
+
     // Validate input
     if (!name || typeof name !== "string") {
       console.error("[addGroundStaff] Invalid name:", name);
       throw new Error("Invalid name. Name must be a non-empty string.");
     }
-  
+
     if (!/^\d{10}$/.test(number)) {
       console.error("[addGroundStaff] Invalid number:", number);
       throw new Error("Invalid number. Must be exactly 10 digits.");
     }
-  
+
     if (!address || typeof address !== "string") {
       console.error("[addGroundStaff] Invalid address:", address);
       throw new Error("Invalid address. Address must be a non-empty string.");
     }
-  
+
     if (!agencyId || typeof agencyId !== "string") {
       console.error("[addGroundStaff] Invalid agencyId:", agencyId);
       throw new Error("Invalid agencyId. AgencyId must be a non-empty string.");
     }
-  
+
     const groundStaff = {
       name,
       number,
@@ -235,18 +235,18 @@ const AgencyModel = {
       agencyId, // Include agencyId in the groundStaff object
       createdAt: new Date(),
     };
-  
+
     try {
       console.log("[addGroundStaff] Connecting to ground staff collection...");
       const groundStaffCollection = await getGroundStaffCollection();
-  
+
       console.log("[addGroundStaff] Inserting ground staff into the database...");
       const insertResult = await groundStaffCollection.insertOne(groundStaff);
-  
+
       console.log("[addGroundStaff] Ground staff added successfully:", {
         insertedId: insertResult.insertedId,
       });
-  
+
       return {
         success: true,
         message: "Ground staff added successfully.",
@@ -261,20 +261,20 @@ const AgencyModel = {
   async getGroundStaffByAgencyId(agencyId) {
     try {
       console.log("[getGroundStaffByAgencyId] Fetching ground staff for agencyId:", agencyId);
-  
+
       // Validate agencyId
       if (!agencyId || typeof agencyId !== "string" || agencyId.trim() === "") {
         throw new Error("Invalid agencyId. AgencyId must be a non-empty string.");
       }
-  
+
       // Connect to the ground_staff collection
       const groundStaffCollection = await getGroundStaffCollection();
-  
+
       // Query the collection for ground staff with the given agencyId
       const groundStaff = await groundStaffCollection.find({ agencyId }).toArray();
-  
+
       console.log("[getGroundStaffByAgencyId] Found ground staff:", groundStaff);
-  
+
       return groundStaff;
     } catch (error) {
       console.error("[getGroundStaffByAgencyId] Error:", error.message);
@@ -310,14 +310,35 @@ const AgencyModel = {
       if (!agency) throw new Error("Agency not found.");
       console.log("[DEBUG] Found agency:", agency);
 
+      const eventFilter = {
+      //   $or: [
+      //     { status: "open" }, // open to everyone
+      //     { status: { $in: ["Accepted", "Assigned"] }, assigned_by: agencyId }, // only events this agency assigned
+      //     { status: { $in: ["closed", "rejected"] }, assigned_by: agencyId }, // historical
+      //   ]
+      // };
+      
+        $or: [
+          { status: "open" },
+          {
+            status: { $in: ["Accepted", "Assigned"] },
+            $or: [
+              { assigned_by: agencyId },
+              { "assigned_agency.agencies": agencyId } // fallback, if assigned_by not yet present
+            ]
+          }
+        ]
+      };
+      
+
       const assignedEvents = await db
         .collection("events")
-        .find({
-          $or: [
-            { "assigned_agency.agencies": agency.AgencyId },
-            { "assigned_agencies.agencies": agency.AgencyId },
-          ],
-        })
+        .find(eventFilter
+          // $or: [
+          //   { "assigned_agency.agencies": agency.AgencyId },
+          //   { "assigned_agencies.agencies": agency.AgencyId },
+          // ],
+        )
         .project({
           _id: 0,
           event_id: 1,
@@ -349,7 +370,7 @@ const AgencyModel = {
             try {
               const urlParts = new URL(originalImageUrl);
               const pathSegments = urlParts.pathname.split("/").filter(Boolean);
-            
+
               if (pathSegments.length >= 3) {
                 const year = pathSegments[1];
                 const filename = pathSegments.slice(2).join("/");
@@ -357,7 +378,7 @@ const AgencyModel = {
                   Bucket: "billion-eyes-images",
                   Key: `${year}/${filename}`,
                 };
-            
+
                 try {
                   const data = await s3.getObject(params).promise();
                   if (data && data.Body) {
@@ -435,6 +456,7 @@ const AgencyModel = {
             exif: event.exif || null,
             timestamp: event.timestamp instanceof Date ? event.timestamp.toISOString() : event.timestamp,
             assigned_agency: event.assigned_agency || event.assigned_agencies || null,
+            assignedTo: event.assigned_agency?.agencyId || event.assigned_agencies?.agencyId || null,
             boundingBoxes,
             x1,
             y1,
@@ -456,21 +478,22 @@ const AgencyModel = {
     }
   },
 
+
   async updateEventStatus(event_id, newStatus, groundStaffName = null) {
     try {
       const eventCollection = await this.getEventsCollection();
-  
+
       // Prepare the update object
       const updateFields = { status: newStatus };
       if (newStatus === "Assigned" && groundStaffName) {
         updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
       }
-  
+
       const result = await eventCollection.updateOne(
         { event_id: event_id },
         { $set: updateFields }
       );
-  
+
       return result;
     } catch (error) {
       console.error("[updateEventStatus] Database Error:", error);
@@ -483,7 +506,7 @@ const AgencyModel = {
       const eventCollection = await this.getEventsCollection();
       return await eventCollection.findOne(
         { event_id: event_id },
-        { projection: { status: 1, _id: 0, incidents: 1 , description: 1 , timestamp:1 ,image_url : 1 , location : 1} }
+        { projection: { status: 1, _id: 0, incidents: 1, description: 1, timestamp: 1, image_url: 1, location: 1 } }
       );
     } catch (error) {
       console.error("[getEventById] Database Error:", error);
@@ -551,144 +574,211 @@ const AgencyModel = {
 
   async getEventReportId(event_id, fields = [], includeImageUrl = true, currentAgencyId = null) {
     try {
-        const eventCollection = await this.getEventsCollection();
+      const eventCollection = await this.getEventsCollection();
 
-        const projection = {
-            event_id: 1,
-            assignment_time: 1,
-            description: 1,
-            ground_staff: 1,
-            location: 1,
-            assigned_agency: 1,
-            bounding_boxes: 1,
-            ...fields.reduce((acc, field) => ({ ...acc, [field]: 1 }), {}),
-        };
+      const projection = {
+        event_id: 1,
+        assignment_time: 1,
+        description: 1,
+        ground_staff: 1,
+        location: 1,
+        assigned_agency: 1,
+        bounding_boxes: 1,
+        ...fields.reduce((acc, field) => ({ ...acc, [field]: 1 }), {}),
+      };
 
-        const pipeline = [
-    { $match: { event_id } },
-    {
-        $addFields: {
+      const pipeline = [
+        { $match: { event_id } },
+        {
+          $addFields: {
             firstIncident: { $arrayElemAt: ["$incidents", 0] },
+          },
         },
-    },
-    {
-        $lookup: {
+        {
+          $lookup: {
             from: "agencies",
             localField: "assigned_agency.agencies",
             foreignField: "AgencyId",
             as: "assignedAgencyDetails",
+          },
         },
-    },
-    {
-        $project: {
+        {
+          $project: {
             ...projection,
             latitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 1] },
             longitude: { $arrayElemAt: ["$firstIncident.location.coordinates", 0] },
             incidents: {
-                $map: {
-                    input: "$incidents",
-                    as: "incident",
-                    in: {
-                        latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
-                        longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
-                        timestamp: "$$incident.timestamp",
-                        image_url: "$$incident.image_url",
-                        boundingBoxes: "$$incident.bounding_boxes",
-                    },
+              $map: {
+                input: "$incidents",
+                as: "incident",
+                in: {
+                  latitude: { $arrayElemAt: ["$$incident.location.coordinates", 1] },
+                  longitude: { $arrayElemAt: ["$$incident.location.coordinates", 0] },
+                  timestamp: "$$incident.timestamp",
+                  image_url: "$$incident.image_url",
+                  boundingBoxes: "$$incident.bounding_boxes",
                 },
+              },
             },
             assignedAgency: {
-                $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyName", 0] }, null],
+              $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyName", 0] }, null],
             },
             AgencyId: {
-                $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyId", 0] }, null],
+              $ifNull: [{ $arrayElemAt: ["$assignedAgencyDetails.AgencyId", 0] }, null],
             },
+          },
         },
-    },
-];
+      ];
 
-        const eventData = await eventCollection.aggregate(pipeline).toArray();
-        if (eventData.length === 0) {
-            console.warn("No event found for event_id:", event_id);
-            return null;
-        }
+      const eventData = await eventCollection.aggregate(pipeline).toArray();
+      if (eventData.length === 0) {
+        console.warn("No event found for event_id:", event_id);
+        return null;
+      }
 
-        const event = eventData[0];
+      const event = eventData[0];
 
-        // Validate currentAgencyId
-        if (currentAgencyId && !event.assigned_agency.agencies.includes(currentAgencyId)) {
-            throw new Error("Agency mismatch: The current agency is not assigned to this event.");
-        }
+      // Validate currentAgencyId
+      if (currentAgencyId && !event.assigned_agency.agencies.includes(currentAgencyId)) {
+        throw new Error("Agency mismatch: The current agency is not assigned to this event.");
+      }
 
-        const firstIncident = event.incidents?.[0] || null;
+      const firstIncident = event.incidents?.[0] || null;
 
-        let imageUrl = firstIncident?.image_url || event.image_url;
+      let imageUrl = firstIncident?.image_url || event.image_url;
 
-        if (includeImageUrl && imageUrl) {
-            try {
-                const urlParts = new URL(imageUrl);
-                const pathSegments = urlParts.pathname.split("/").filter(Boolean);
+      if (includeImageUrl && imageUrl) {
+        try {
+          const urlParts = new URL(imageUrl);
+          const pathSegments = urlParts.pathname.split("/").filter(Boolean);
 
-                if (pathSegments.length >= 3) {
-                    const year = pathSegments[1];
-                    const filename = pathSegments.slice(2).join("/");
+          if (pathSegments.length >= 3) {
+            const year = pathSegments[1];
+            const filename = pathSegments.slice(2).join("/");
 
-                    const params = {
-                        Bucket: "billion-eyes-images",
-                        Key: `${year}/${filename}`,
-                    };
+            const params = {
+              Bucket: "billion-eyes-images",
+              Key: `${year}/${filename}`,
+            };
 
-                    const data = await s3.getObject(params).promise();
-                    if (data && data.Body) {
-                        imageUrl = `data:image/jpeg;base64,${data.Body.toString("base64")}`;
-                    }
-                }
-            } catch (error) {
-                console.warn("Image fetch failed:", error.message);
-                imageUrl = firstIncident?.image_url || event.image_url;
+            const data = await s3.getObject(params).promise();
+            if (data && data.Body) {
+              imageUrl = `data:image/jpeg;base64,${data.Body.toString("base64")}`;
             }
-        } else {
-            imageUrl = null;
+          }
+        } catch (error) {
+          console.warn("Image fetch failed:", error.message);
+          imageUrl = firstIncident?.image_url || event.image_url;
         }
+      } else {
+        imageUrl = null;
+      }
 
-        event.image_url = imageUrl;
+      event.image_url = imageUrl;
 
-        const boundingBoxes = firstIncident?.boundingBoxes || [];
-        event.boundingBoxes = boundingBoxes;
+      const boundingBoxes = firstIncident?.boundingBoxes || [];
+      event.boundingBoxes = boundingBoxes;
 
-        if (boundingBoxes.length > 0 && Array.isArray(boundingBoxes[0])) {
-            const [x1, y1, x2, y2] = boundingBoxes[0];
-            event.x1 = x1;
-            event.y1 = y1;
-            event.x2 = x2;
-            event.y2 = y2;
-        } else {
-            event.x1 = event.y1 = event.x2 = event.y2 = null;
-        }
+      if (boundingBoxes.length > 0 && Array.isArray(boundingBoxes[0])) {
+        const [x1, y1, x2, y2] = boundingBoxes[0];
+        event.x1 = x1;
+        event.y1 = y1;
+        event.x2 = x2;
+        event.y2 = y2;
+      } else {
+        event.x1 = event.y1 = event.x2 = event.y2 = null;
+      }
 
-        if (currentAgencyId) {
-            event.AgencyId = currentAgencyId;
-        }
+      if (currentAgencyId) {
+        event.AgencyId = currentAgencyId;
+      }
 
-        return {
-            success: true,
-            assignment_time:  event.assignment_time || firstIncident?.timestamp || null,
-            event_id: event.event_id,
-            description: event.description,
-            ground_staff: event.ground_staff || null,
-            latitude: firstIncident?.latitude || null,
-            longitude: firstIncident?.longitude || null,
-            image_url: event.image_url,
-            assignedAgency: event.assignedAgency || null,
-            
-            AgencyId: event.AgencyId || null,
-        };
+      return {
+        success: true,
+        assignment_time: event.assignment_time || firstIncident?.timestamp || null,
+        event_id: event.event_id,
+        description: event.description,
+        ground_staff: event.ground_staff || null,
+        latitude: firstIncident?.latitude || null,
+        longitude: firstIncident?.longitude || null,
+        image_url: event.image_url,
+        assignedAgency: event.assignedAgency || null,
+
+        AgencyId: event.AgencyId || null,
+      };
     } catch (err) {
-        console.error("[getEventReportId] Database Error:", err);
-        throw new Error("Database Error");
+      console.error("[getEventReportId] Database Error:", err);
+      throw new Error("Database Error");
     }
-}
-,
+  }
+  ,
+
+  // here pinaki mitra do some work for not reassigning the event to the same agency
+  // 23-06-2025
+  async findAgencyWithAvailableStaff(excludeAgencyId) {
+    const db = client.db("BillionEyes_V1");
+    const cursor = db.collection("agencies").aggregate([
+      { $match: { AgencyId: { $ne: excludeAgencyId } } },
+      {
+        $lookup: {
+          from: "ground_staff",
+          localField: "AgencyId",
+          foreignField: "agencyId",
+          as: "staff",
+        },
+      },
+      { $addFields: { staffCount: { $size: "$staff" } } },
+      { $match: { staffCount: { $gt: 0 } } },
+      { $sort: { staffCount: -1 } },
+      { $limit: 1 },
+    ]);
+    return await cursor.next();
+  },
+  
+  async reassignEvent(event_id, agencyDoc) {
+    const eventCollection = await this.getEventsCollection();
+    return eventCollection.updateOne(
+      { event_id },
+      {
+        $set: {
+          status: "Assigned",
+          assignment_time: new Date(),
+          assigned_agency: { agencies: agencyDoc.AgencyId },
+          AgencyName: agencyDoc.AgencyName,
+        },
+      }
+    );
+  },
+  
+  async autoReassignEvent(event_id) {
+    const event = await this.getEventById(event_id);
+    if (!event) return { success: false, reason: "event_not_found" };
+  
+    const currentAgencyId =
+      event.assigned_agency?.agencies ||
+      event.assigned_agencies?.agencies ||
+      event.AgencyId;
+    if (!currentAgencyId)
+      return { success: false, reason: "no_current_agency" };
+  
+    const staff = await this.getGroundStaffByAgencyId(currentAgencyId);
+    if (staff.length > 0)
+      return { success: true, reassigned: false, agencyId: currentAgencyId };
+  
+    const alternative = await this.findAgencyWithAvailableStaff(currentAgencyId);
+    if (!alternative)
+      return { success: false, reason: "no_agency_with_staff" };
+  
+    await this.reassignEvent(event_id, alternative);
+  
+    return {
+      success: true,
+      reassigned: true,
+      newAgencyId: alternative.AgencyId,
+      newAgencyName: alternative.AgencyName,
+    };
+  },
+  
 };
 
 module.exports = AgencyModel;

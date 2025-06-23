@@ -219,30 +219,56 @@ async function addNewGroundStaff(req, res) {
 }
 
 
+// const getAgencyDashboard = async (req, res) => {
+//   try {
+//     console.log("`[DEBUG] Request Params:", req.params); // Log the request parameters
+    
+//       const { agencyId } = req.params;
+
+//       if (!agencyId) {
+//           return res.status(400).json({ error: "Agency ID is required." });
+//       }
+
+//       console.log(`Fetching dashboard data for agencyId: ${agencyId}`);
+
+//       const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
+
+//       if (!agencyData) {
+//           return res.status(404).json({ message: "Agency not found or no events assigned." });
+//       }
+
+//       return res.status(200).json(agencyData);
+//   } catch (error) {
+//       console.error("[getAgencyDashboard] Error:", error.message);
+//       return res.status(500).json({ error: error.message || "Internal Server Error" });
+//   }
+// };
 const getAgencyDashboard = async (req, res) => {
   try {
-    console.log("`[DEBUG] Request Params:", req.params); // Log the request parameters
-    
-      const { agencyId } = req.params;
+    const { agencyId } = req.params;
 
-      if (!agencyId) {
-          return res.status(400).json({ error: "Agency ID is required." });
-      }
+    if (!agencyId) {
+      return res.status(400).json({ error: "Agency ID is required." });
+    }
 
-      console.log(`Fetching dashboard data for agencyId: ${agencyId}`);
+    console.log(`Fetching dashboard data for agencyId: ${agencyId}`);
 
-      const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
+    // Use your own method (since you're using MongoClient, not Mongoose)
+    const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
 
-      if (!agencyData) {
-          return res.status(404).json({ message: "Agency not found or no events assigned." });
-      }
+    if (!agencyData) {
+      return res.status(404).json({ message: "Agency not found or no events assigned." });
+    }
 
-      return res.status(200).json(agencyData);
+    return res.status(200).json(agencyData);
+
   } catch (error) {
-      console.error("[getAgencyDashboard] Error:", error.message);
-      return res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("[getAgencyDashboard] Error:", error.message);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 };
+
+
 
 
 // Controller to update event status
@@ -498,6 +524,34 @@ async function getGroundStaffByAgency(req, res) {
     });
   }
 }
+async function autoAssignEvent(req, res) {
+  try {
+    const { event_id } = req.params;
+
+    // Ask the model to handle the heavy lifting
+    const result = await AgencyModel.autoReassignEvent(event_id);
+
+    // Convert "reason" codes to HTTP status codes
+    const errorCodeMap = {
+      event_not_found:       404,
+      no_current_agency:     400,
+      no_agency_with_staff:  409, // Conflict – no better agency found
+    };
+
+    if (!result.success) {
+      return res
+        .status(errorCodeMap[result.reason] || 400)
+        .json({ success: false, reason: result.reason });
+    }
+
+    // Success – either kept the same agency, or reassigned
+    return res.status(200).json(result);
+
+  } catch (err) {
+    console.error("[autoAssignEvent] Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
 
 module.exports = {
   createAgency,
@@ -515,7 +569,8 @@ module.exports = {
   // deleteIncident,
   resetPasswordAgency,
   requestOtpAgency,
-  addNewGroundStaff
+  addNewGroundStaff,
+  autoAssignEvent
   
 //   getGroundStaff,
 };

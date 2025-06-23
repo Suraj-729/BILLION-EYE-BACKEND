@@ -26,7 +26,11 @@ router.post("/agencyId", AgencyController.createAgency);
 router.post("/agency/logout", AgencyController.logoutAgency);
 router.get('/:bucket/:year/:filename', getImageFromMinio);
 router.get("/:agencyId/groundstaff", AgencyController.getGroundStaffByAgency);
-
+//pinaki
+router.patch(
+    "/events/:event_id/auto-assign",
+    AgencyController.autoAssignEvent
+  );
 
 router.get('/incident-images/:event_id', AgencyController.allImage);
 

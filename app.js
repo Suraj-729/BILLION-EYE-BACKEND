@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
 const path = require('path');
+const auditLog = require('./middlewares/auditLog')
 dotenv.config(); 
 const cors = require('cors');
 const connectToDb = require('./Db/db')
@@ -31,6 +32,8 @@ app.use(express.urlencoded({ limit: '150mb', extended: true }));
 // });
 
 //****************************************************************************** */
+
+app.use(auditLog);
 app.use((req, res, next) => {
   console.log('Request content length:', req.headers['content-length']);
   next();

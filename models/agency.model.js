@@ -6,7 +6,7 @@ const AWS = require("aws-sdk");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key"; // Use a secure secret key
 const JWT_EXPIRATION = "1h"; // Token expiration time (e.g., 1 hour)
-
+const sharp = require('sharp');
 // MongoDB client setup
 const client = new MongoClient(uri);
 
@@ -20,6 +20,9 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION, // Add this line
   s3ForcePathStyle: true,
   signatureVersion: "v4",
+  httpOptions:{
+    timeout:200
+  }
 });
 
 // Helper functions to get MongoDB collections
@@ -283,16 +286,6 @@ const AgencyModel = {
   },
 
 
-
-
-
-
-
-
-
-
-
-
   async getAgencyDashboardCheck(agencyId) {
     try {
       if (!agencyId) throw new Error("Agency ID is required.");
@@ -479,27 +472,33 @@ const AgencyModel = {
   },
 
 
-  async updateEventStatus(event_id, newStatus, groundStaffName = null) {
-    try {
-      const eventCollection = await this.getEventsCollection();
 
-      // Prepare the update object
-      const updateFields = { status: newStatus };
-      if (newStatus === "Assigned" && groundStaffName) {
-        updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
-      }
 
-      const result = await eventCollection.updateOne(
-        { event_id: event_id },
-        { $set: updateFields }
-      );
+// Assuming 's3' is already initialized (e.g., const AWS = require('aws-sdk'); const s3 = new AWS.S3();)
+// And 'client' for MongoDB is also initialized.
 
-      return result;
-    } catch (error) {
-      console.error("[updateEventStatus] Database Error:", error);
-      throw new Error("Database Error");
+  async updateEventStatus(event_id, newStatus, groundStaffName = null, assignmentTime = null) {
+  try {
+    const eventCollection = await this.getEventsCollection();
+
+    // Prepare the update object
+    const updateFields = { status: newStatus };
+    if (newStatus === "Assigned" && groundStaffName) {
+      updateFields.ground_staff = groundStaffName; // Add ground_staff name if status is "Assigned"
+      updateFields.assignment_time = assignmentTime || new Date(); // Add assignment_time
     }
-  },
+
+    const result = await eventCollection.updateOne(
+      { event_id: event_id },
+      { $set: updateFields }
+    );
+
+    return result;
+  } catch (error) {
+    console.error("[updateEventStatus] Database Error:", error);
+    throw new Error("Database Error");
+  }
+},
 
   async getEventById(event_id) {
     try {
@@ -693,19 +692,21 @@ const AgencyModel = {
         event.AgencyId = currentAgencyId;
       }
 
-      return {
-        success: true,
-        assignment_time: event.assignment_time || firstIncident?.timestamp || null,
-        event_id: event.event_id,
-        description: event.description,
-        ground_staff: event.ground_staff || null,
-        latitude: firstIncident?.latitude || null,
-        longitude: firstIncident?.longitude || null,
-        image_url: event.image_url,
-        assignedAgency: event.assignedAgency || null,
 
-        AgencyId: event.AgencyId || null,
-      };
+        return {
+            success: true,
+            assignment_time: firstIncident?.timestamp || null,
+            event_id: event.event_id,
+            description: event.description,
+            ground_staff: event.ground_staff || null,
+            latitude: firstIncident?.latitude || null,
+            longitude: firstIncident?.longitude || null,
+            image_url: event.image_url,
+            assignedAgency: event.assignedAgency || null,
+            
+            AgencyId: event.AgencyId || null,
+        };
+
     } catch (err) {
       console.error("[getEventReportId] Database Error:", err);
       throw new Error("Database Error");

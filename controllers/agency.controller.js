@@ -2,10 +2,8 @@ const AgencyModel  = require("../models/agency.model");
 console.log(AgencyModel);
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key"; // Use a secure secret key
 const JWT_EXPIRATION = "1h"; // Token expiration time (e.g., 1 hour)
-
 // Create A New Agency
 async function createAgency(req, res) {
   try {
@@ -70,10 +68,6 @@ async function createAgency(req, res) {
     });
   }
 }
-
-
-
-
 // Login Controller
 async function loginAgency(req, res) {
   try {
@@ -120,7 +114,6 @@ async function loginAgency(req, res) {
     });
   }
 }
-
 // Logout Controller
 async function logoutAgency(req, res) {
   try {
@@ -155,8 +148,6 @@ async function logoutAgency(req, res) {
     });
   }
 }
-
-
 
 async function addNewGroundStaff(req, res) {
   try {
@@ -219,30 +210,6 @@ async function addNewGroundStaff(req, res) {
 }
 
 
-// const getAgencyDashboard = async (req, res) => {
-//   try {
-//     console.log("`[DEBUG] Request Params:", req.params); // Log the request parameters
-    
-//       const { agencyId } = req.params;
-
-//       if (!agencyId) {
-//           return res.status(400).json({ error: "Agency ID is required." });
-//       }
-
-//       console.log(`Fetching dashboard data for agencyId: ${agencyId}`);
-
-//       const agencyData = await AgencyModel.getAgencyDashboardCheck(agencyId);
-
-//       if (!agencyData) {
-//           return res.status(404).json({ message: "Agency not found or no events assigned." });
-//       }
-
-//       return res.status(200).json(agencyData);
-//   } catch (error) {
-//       console.error("[getAgencyDashboard] Error:", error.message);
-//       return res.status(500).json({ error: error.message || "Internal Server Error" });
-//   }
-// };
 const getAgencyDashboard = async (req, res) => {
   try {
     const { agencyId } = req.params;
@@ -268,24 +235,32 @@ const getAgencyDashboard = async (req, res) => {
   }
 };
 
-
-
-
 // Controller to update event status
 const updateEvenstStatus = async (req, res) => {
   try {
-    const { event_id } = req.params; // Get event_id from URL
-    const { status, groundStaffName } = req.body; // Get new status and ground staff name from request body
-    console.log(req.body);
-    
+    const { event_id } = req.params;
+    const { status, groundStaffName, agencyId } = req.body;
+
     if (!status) {
       return res.status(400).json({ message: "Status is required." });
     }
 
-    // Call the model function with the groundStaffName if provided
-    const result = await AgencyModel.updateEventStatus(event_id, status, groundStaffName);
-    console.log(result); 
-    
+    // If status is "Accepted", update assigned_agency.agencies to only the accepting agency
+    let updateFields = { status };
+    if (status === "Accepted" && agencyId) {
+      updateFields["assigned_agency.agencies"] = [agencyId];
+    }
+    if (status === "Assigned" && groundStaffName) {
+      updateFields.ground_staff = groundStaffName;
+      updateFields.assignment_time = new Date(); // <-- Add this line
+    }
+
+    const eventCollection = await AgencyModel.getEventsCollection();
+    const result = await eventCollection.updateOne(
+      { event_id },
+      { $set: updateFields }
+    );
+
     if (result.modifiedCount === 0) {
       return res.status(404).json({ message: "Event not found or status unchanged." });
     }
@@ -317,12 +292,6 @@ const  getEventsById= async (req, res)  =>{
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
-
-
-
-
-
-
 
 
 async function requestOtpAgency(req, res) {
@@ -439,7 +408,6 @@ async function allImage(req, res) {
     return res.status(500).json({ message: 'Server error.' });
   }
 }
-
 
 
 async function getEventReport(req, res) {

@@ -495,24 +495,23 @@ async function getGroundStaffByAgency(req, res) {
 async function autoAssignEvent(req, res) {
   try {
     const { event_id } = req.params;
+    console.log("[autoAssignEvent] Request for:", event_id);
 
-    // Ask the model to handle the heavy lifting
     const result = await AgencyModel.autoReassignEvent(event_id);
 
-    // Convert "reason" codes to HTTP status codes
     const errorCodeMap = {
       event_not_found:       404,
       no_current_agency:     400,
-      no_agency_with_staff:  409, // Conflict – no better agency found
+      no_agency_with_staff:  409,
     };
 
     if (!result.success) {
+      console.warn("[autoAssignEvent] Failed:", result.reason);
       return res
         .status(errorCodeMap[result.reason] || 400)
         .json({ success: false, reason: result.reason });
     }
 
-    // Success – either kept the same agency, or reassigned
     return res.status(200).json(result);
 
   } catch (err) {
@@ -520,6 +519,7 @@ async function autoAssignEvent(req, res) {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 }
+
 
 module.exports = {
   createAgency,

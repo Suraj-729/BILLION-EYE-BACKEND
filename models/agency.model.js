@@ -55,7 +55,7 @@ const AgencyModel = {
   async createAgencyInDB(AgencyName, mobileNumber, password, location = {}) {
     console.log("[createAgencyInDB] Function called with parameters:", {
       AgencyName,
-      mobileNumber,
+      mobileNumber,       
       location,
     });
 
@@ -753,22 +753,43 @@ const AgencyModel = {
   
   async autoReassignEvent(event_id) {
     const event = await this.getEventById(event_id);
-    if (!event) return { success: false, reason: "event_not_found" };
+    if (!event) {
+      console.warn("[autoReassignEvent] Event not found:", event_id);
+      return { success: false, reason: "event_not_found" };
+    }
   
-    const currentAgencyId =
+    let currentAgencyId =
       event.assigned_agency?.agencies ||
       event.assigned_agencies?.agencies ||
       event.AgencyId;
-    if (!currentAgencyId)
-      return { success: false, reason: "no_current_agency" };
+  
+    // 🚨 If no agency is assigned yet, just find a good one
+    if (!currentAgencyId) {
+      console.warn("[autoReassignEvent] No agency found in event. Trying fresh assignment.");
+      const alternative = await this.findAgencyWithAvailableStaff(null);
+      if (!alternative) {
+        return { success: false, reason: "no_agency_with_staff" };
+      }
+  
+      await this.reassignEvent(event_id, alternative);
+  
+      return {
+        success: true,
+        reassigned: true,
+        newAgencyId: alternative.AgencyId,
+        newAgencyName: alternative.AgencyName,
+      };
+    }
   
     const staff = await this.getGroundStaffByAgencyId(currentAgencyId);
-    if (staff.length > 0)
+    if (staff && staff.length > 0) {
       return { success: true, reassigned: false, agencyId: currentAgencyId };
+    }
   
     const alternative = await this.findAgencyWithAvailableStaff(currentAgencyId);
-    if (!alternative)
+    if (!alternative) {
       return { success: false, reason: "no_agency_with_staff" };
+    }
   
     await this.reassignEvent(event_id, alternative);
   
@@ -778,7 +799,9 @@ const AgencyModel = {
       newAgencyId: alternative.AgencyId,
       newAgencyName: alternative.AgencyName,
     };
-  },
+  }
+  
+  
   
 };
 
